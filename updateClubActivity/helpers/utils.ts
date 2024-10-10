@@ -11,3 +11,12 @@ export function getExponentialBackoffDelay(
   const jitter = Math.random() * baseDelay - baseDelay / 2; // random value between -0.5*baseDelay and 0.5*baseDelay
   return Math.min(rawDelay + jitter, maxDelay);
 }
+
+type DaysFromProps = {
+  date?: Date;
+  days: number;
+};
+
+export function daysFrom({ date = new Date(), days }: DaysFromProps) {
+  return new Date(new Date(date).getTime() + days * 24 * 60 * 60 * 1000);
+}

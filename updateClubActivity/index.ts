@@ -1,11 +1,12 @@
 import * as dotenv from "dotenv";
 dotenv.config();
 
-import { db } from "./init.js";
-
 import doWithRetries from "./helpers/doWithRetries.js";
 import addErrorLog from "./helpers/addErrorLog.js";
 import addCronLog from "./helpers/addCronLog.js";
+import removeFromClub from "./functions/removeFromClub.js";
+import { daysFrom } from "./helpers/utils.js";
+import { db } from "./init.js";
 
 async function run() {
   try {
@@ -14,10 +15,13 @@ async function run() {
       functionToExecute: async () =>
         db
           .collection("User")
-          .find({
-            "club.isActive": true,
-            "subscriptions.club.validUntil": { $lte: new Date() },
-          })
+          .find(
+            {
+              "club.isActive": true,
+              "subscriptions.club.validUntil": { $lte: new Date() },
+            },
+            { projection: { "subscriptions.club": 1 } }
+          )
           .toArray(),
     });
 
@@ -34,6 +38,17 @@ async function run() {
           { $set: { "club.isActive": false } }
         ),
     });
+
+    for (const member of expiredClubMembers) {
+      const { subscriptions } = member;
+      const { club } = subscriptions;
+
+      const checkDate = daysFrom({ date: new Date(club.validUntil), days: 7 });
+
+      if (checkDate < new Date()) {
+        await removeFromClub({ userId: String(member._id) });
+      }
+    }
 
     addCronLog({
       functionName: "updateClubActivity",
