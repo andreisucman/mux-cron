@@ -5,7 +5,8 @@ import doWithRetries from "./helpers/doWithRetries.js";
 import addErrorLog from "./helpers/addErrorLog.js";
 import addCronLog from "./helpers/addCronLog.js";
 import removeFromClub from "./functions/removeFromClub.js";
-import { daysFrom } from "./helpers/utils.js";
+import sendEmail from "./functions/sendEmail.js";
+import { daysFrom, formatDate } from "./helpers/utils.js";
 import { db } from "./init.js";
 
 async function run() {
@@ -20,7 +21,7 @@ async function run() {
               "club.isActive": true,
               "subscriptions.club.validUntil": { $lte: new Date() },
             },
-            { projection: { "subscriptions.club": 1 } }
+            { projection: { "subscriptions.club": 1, email: 1 } }
           )
           .toArray(),
     });
@@ -40,12 +41,33 @@ async function run() {
     });
 
     for (const member of expiredClubMembers) {
-      const { subscriptions } = member;
+      const { subscriptions, email } = member;
       const { club } = subscriptions;
 
-      const checkDate = daysFrom({ date: new Date(club.validUntil), days: 7 });
+      const firstCheckDate = daysFrom({
+        date: new Date(club.validUntil),
+        days: 1,
+      });
 
-      if (checkDate < new Date()) {
+      const lastCheckDate = daysFrom({
+        date: new Date(club.validUntil),
+        days: 7,
+      });
+
+      if (firstCheckDate > new Date()) {
+        await sendEmail({
+          to: email,
+          from: "info@maxyouout.com",
+          subject: "Your club subscription has expired",
+          text: `Hello,\n Your club subscription has expired on ${formatDate({
+            date: new Date(club.validUntil),
+          })}.\nWe will keep your club data until ${formatDate({
+            date: lastCheckDate,
+          })}. After that it will be permanently deleted and your trackers released.\nTo prevent the loss of your club data and trackers please renew your subscription.\nThank you,\nMax You Out`,
+        });
+      }
+
+      if (lastCheckDate < new Date()) {
         await removeFromClub({ userId: String(member._id) });
       }
     }
