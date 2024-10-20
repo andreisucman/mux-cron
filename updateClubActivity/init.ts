@@ -1,6 +1,7 @@
 import * as dotenv from "dotenv";
 import { SESClient } from "@aws-sdk/client-ses";
 import { MongoClient } from "mongodb";
+import Stripe from "stripe";
 
 dotenv.config();
 
@@ -15,4 +16,6 @@ const sesClient = new SESClient({
   },
 });
 
-export { client, db, sesClient };
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+
+export { client, db, sesClient, stripe };

@@ -17,7 +17,7 @@ async function run() {
     });
 
     addCronLog({
-      functionName: "deleteAccounts",
+      functionName: "cron - deleteAccounts",
       message: `${deletedCount} accounts deleted`,
     });
   } catch (err) {

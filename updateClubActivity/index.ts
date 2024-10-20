@@ -58,7 +58,7 @@ async function run() {
         await sendEmail({
           to: email,
           from: "info@maxyouout.com",
-          subject: "Your club subscription has expired",
+          subject: "Your club data at MaxYouOut.com",
           text: `Hello,\n Your club subscription has expired on ${formatDate({
             date: new Date(club.validUntil),
           })}.\nWe will keep your club data until ${formatDate({

@@ -1,6 +1,8 @@
 import { ObjectId } from "mongodb";
-import { db } from "../init.js";
+import { db, stripe } from "../init.js";
+import formatAmountForStripe from "../helpers/formatAmountForStripe.js";
 import doWithRetries from "../helpers/doWithRetries.js";
+import updatePublicity from "./updatePublicity.js";
 import addErrorLog from "../helpers/addErrorLog.js";
 
 type Props = {
@@ -9,6 +11,43 @@ type Props = {
 
 export default async function removeFromClub({ userId }: Props) {
   try {
+    const userInfo = await doWithRetries({
+      functionName: "removeFromClub - get user balance",
+      functionToExecute: async () =>
+        db
+          .collection("User")
+          .findOne(
+            { _id: new ObjectId(userId) },
+            { projection: { "club.payouts": 1 } }
+          ),
+    });
+
+    const { payouts } = userInfo.club;
+    const { rewardEarned, connectId } = payouts;
+
+    if (rewardEarned > 0) {
+      await doWithRetries({
+        functionName: "removeFromClub - transfer",
+        functionToExecute: async () =>
+          stripe.transfers.create({
+            currency: "usd",
+            destination: connectId,
+            amount: formatAmountForStripe(rewardEarned, "usd"),
+          }),
+      });
+
+      await doWithRetries({
+        functionName: "removeFromClub - transfer",
+        functionToExecute: async () =>
+          db.collection("User").updateMany(
+            {
+              "club.payouts.connectId": connectId,
+            },
+            { $set: { "club.payouts.rewardEarned": 0 } }
+          ),
+      });
+    }
+
     await doWithRetries({
       functionName: "removeFromClub - unset club",
       functionToExecute: async () =>
@@ -17,16 +56,7 @@ export default async function removeFromClub({ userId }: Props) {
           .updateOne({ _id: new ObjectId(userId) }, { $unset: { club: null } }),
     });
 
-    await doWithRetries({
-      functionName: "removeFromClub - change privacy",
-      functionToExecute: async () =>
-        db
-          .collection("Proof")
-          .updateMany(
-            { _id: new ObjectId(userId) },
-            { $set: { isPublic: false } }
-          ),
-    });
+    await updatePublicity({ userId, isPublic: false });
 
     /* if the user is being tracked by someone assign another random user to the someone */
     const randomClubUser = await doWithRetries({
