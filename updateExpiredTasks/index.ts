@@ -10,7 +10,7 @@ import addCronLog from "./helpers/addCronLog.js";
 async function run() {
   try {
     const { modifiedCount } = await doWithRetries({
-      functionName: "cron - updateExpiredTasks - find",
+      functionName: "cron - updateExpiredTasks - update tasks",
       functionToExecute: async () =>
         db
           .collection("User")
@@ -19,9 +19,21 @@ async function run() {
             { $set: { status: "expired" } }
           ),
     });
+    
+    const { modifiedCount: modfiedRoutines } = await doWithRetries({
+      functionName: "cron - updateExpiredTasks - update routines",
+      functionToExecute: async () =>
+        db
+          .collection("User")
+          .updateMany(
+            { status: "active", lastDate: { $lte: new Date() } },
+            { $set: { status: "inactive" } }
+          ),
+    });
+
     addCronLog({
       functionName: "updateExpiredTasks",
-      message: `${modifiedCount} tasks updated`,
+      message: `${modifiedCount} tasks and ${modfiedRoutines} routines inactivated`,
     });
   } catch (err) {
     addErrorLog({
