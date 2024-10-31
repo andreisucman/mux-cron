@@ -9,6 +9,10 @@ import { db } from "./init.js";
 
 async function run() {
   try {
+    const solutionsFilters = await extractFilters({
+      collection: "Solution",
+    });
+
     const beforeAfterFilters = await extractFilters({
       collection: "BeforeAfter",
     });
@@ -24,20 +28,30 @@ async function run() {
     const toUpdate = [
       {
         updateOne: {
+          filter: { collection: "Solution" },
+          update: { $set: { filters: solutionsFilters } },
+          upsert: true,
+        },
+      },
+      {
+        updateOne: {
           filter: { collection: "BeforeAfter" },
-          update: { filters: beforeAfterFilters },
+          update: { $set: { filters: beforeAfterFilters } },
+          upsert: true,
         },
       },
       {
         updateOne: {
           filter: { collection: "Proof" },
-          update: { filters: proofFilters },
+          update: { $set: { filters: proofFilters } },
+          upsert: true,
         },
       },
       {
         updateOne: {
           filter: { collection: "StyleAnalysis" },
-          update: { filters: styleFilters },
+          update: { $set: { filters: styleFilters } },
+          upsert: true,
         },
       },
     ];

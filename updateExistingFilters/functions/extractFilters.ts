@@ -19,6 +19,7 @@ export default async function extractFilters({ collection }: Props) {
               $project: {
                 type: 1,
                 concern: 1,
+                nearestConcerns: { $ifNull: ["$nearestConcerns", []] },
                 sex: "$demographics.sex",
                 ageInterval: "$demographics.ageInterval",
                 bodyType: "$demographics.bodyType",
@@ -28,11 +29,18 @@ export default async function extractFilters({ collection }: Props) {
               },
             },
             {
+              $unwind: {
+                path: "$nearestConcerns",
+                preserveNullAndEmptyArrays: true,
+              },
+            },
+            {
               $group: {
                 _id: null,
                 sex: { $addToSet: "$sex" },
                 type: { $addToSet: "$type" },
                 concern: { $addToSet: "$concern" },
+                nearestConcerns: { $addToSet: "$nearestConcerns" },
                 ageInterval: { $addToSet: "$ageInterval" },
                 bodyType: { $addToSet: "$bodyType" },
                 skinColor: { $addToSet: "$skinColor" },
@@ -45,6 +53,9 @@ export default async function extractFilters({ collection }: Props) {
                 _id: 0,
                 sex: { $setDifference: ["$sex", [null]] },
                 type: { $setDifference: ["$type", [null]] },
+                nearestConcerns: {
+                  $setDifference: ["$nearestConcerns", [null]],
+                },
                 concern: { $setDifference: ["$concern", [null]] },
                 ageInterval: { $setDifference: ["$ageInterval", [null]] },
                 bodyType: { $setDifference: ["$bodyType", [null]] },
