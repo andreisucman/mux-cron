@@ -18,7 +18,7 @@ async function handleAllocateReward(skip: number) {
         db
           .collection("User")
           .find(
-            { "club.isActive": true },
+            { "subscriptions.peek.validUntil": { $gt: new Date() } },
             { projection: { "club.payouts": 1, "club.trackedUserId": 1 } }
           )
           .skip(skip)
@@ -32,21 +32,29 @@ async function handleAllocateReward(skip: number) {
       const { oneShareAmount, rewardFund } = payouts;
 
       if (rewardFund - oneShareAmount > 0) {
-        const updatePayload = {
+        const updateTracking = {
           updateOne: {
             filter: { _id: new ObjectId(trackedUserId), "club.isActive": true },
             update: { $inc: { "club.payouts.rewardEarned": oneShareAmount } },
           },
         };
 
-        bulkOps.push(updatePayload);
+        const updateTracker = {
+          updateOne: {
+            filter: { _id: new ObjectId(user._id) },
+            update: {
+              $inc: { "club.payouts.rewardEarned": oneShareAmount * -1 },
+            },
+          },
+        };
+
+        bulkOps.push(updateTracking, updateTracker);
       }
     }
 
     await doWithRetries({
       functionName: "handleAllocateReward - bulkOps",
-      functionToExecute: async () =>
-        db.collection("User").bulkWrite(bulkOps, { ordered: false }),
+      functionToExecute: async () => db.collection("User").bulkWrite(bulkOps),
     });
   } catch (err) {
     addErrorLog({ functionName: "handleAllocateReward", message: err });
