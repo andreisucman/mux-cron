@@ -1,5 +1,5 @@
 {
-  "name": "myo-cron-check-tasks",
+  "name": "mux-cron-check-tasks",
   "version": "1.0.0",
   "main": "index.js",
   "private": true,

@@ -1,14 +1,15 @@
-import { db } from "../init.js";
+import { db } from "init.js";
 
-type Props = { message: string; functionName: string };
+type Props = { message: string; isError: boolean; functionName: string };
 
-const addCronLog = async ({ message, functionName }: Props) => {
+const addCronLog = async ({ message, isError, functionName }: Props) => {
   try {
     const errorLogsCollection = db.collection("CronLog");
 
     const newErrorLog = {
       functionName,
       message,
+      isError,
       createdAt: new Date(),
     };
 

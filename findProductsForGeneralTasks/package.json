@@ -1,5 +1,5 @@
 {
-  "name": "myo-cron-find-products",
+  "name": "mux-cron-find-products",
   "version": "1.0.0",
   "main": "index.js",
   "private": true,

@@ -12,7 +12,12 @@
     "skipLibCheck": true,
     "allowJs": true,
     "checkJs": false,
-    "outDir": "dist"
+    "outDir": "dist",
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["*"],
+      "@helpers/*": ["helpers/*"]
+    }
   },
   "include": ["./**/*"],
   "exclude": ["node_modules", "./node_modules", "**/*.test.js", "dist"]

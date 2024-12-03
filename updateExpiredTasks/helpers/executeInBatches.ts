@@ -1,4 +1,4 @@
-import doWithRetries from "./doWithRetries";
+import doWithRetries from "helpers/doWithRetries.js";
 
 type ExecuteInBatchesProps = {
   promises: Promise<any>[];
@@ -12,10 +12,7 @@ export default async function executeInBatches({
   const results = [];
   for (let i = 0; i < promises.length; i += batchSize) {
     const batch = promises.slice(i, i + batchSize);
-    const batchResults = await doWithRetries({
-      functionName: "executeInBatches",
-      functionToExecute: async () => Promise.all(batch),
-    });
+    const batchResults = await doWithRetries(async () => Promise.all(batch));
     results.push(...batchResults);
   }
   return results;

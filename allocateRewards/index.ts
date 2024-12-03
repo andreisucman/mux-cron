@@ -1,30 +1,26 @@
-import { ObjectId } from "mongodb";
 import * as dotenv from "dotenv";
 dotenv.config();
 
-import { db } from "./init.js";
-
-import doWithRetries from "./helpers/doWithRetries.js";
-import addErrorLog from "./helpers/addErrorLog.js";
-import addCronLog from "./helpers/addCronLog.js";
+import { ObjectId } from "mongodb";
+import { db } from "init.js";
+import doWithRetries from "helpers/doWithRetries.js";
+import addCronLog from "helpers/addCronLog.js";
 
 async function handleAllocateReward(skip: number) {
   try {
     const bulkOps: any = [];
 
-    const users = await doWithRetries({
-      functionName: "handleAllocateReward - find",
-      functionToExecute: async () =>
-        db
-          .collection("User")
-          .find(
-            { "subscriptions.peek.validUntil": { $gt: new Date() } },
-            { projection: { "club.payouts": 1, "club.trackedUserId": 1 } }
-          )
-          .skip(skip)
-          .limit(skip)
-          .toArray(),
-    });
+    const users = await doWithRetries(() =>
+      db
+        .collection("User")
+        .find(
+          { "subscriptions.peek.validUntil": { $gt: new Date() } },
+          { projection: { "club.payouts": 1, "club.trackedUserId": 1 } }
+        )
+        .skip(skip)
+        .limit(skip)
+        .toArray()
+    );
 
     for (const user of users) {
       const { club } = user;
@@ -52,23 +48,22 @@ async function handleAllocateReward(skip: number) {
       }
     }
 
-    await doWithRetries({
-      functionName: "handleAllocateReward - bulkOps",
-      functionToExecute: async () => db.collection("User").bulkWrite(bulkOps),
-    });
+    await doWithRetries(async () => db.collection("User").bulkWrite(bulkOps));
   } catch (err) {
-    addErrorLog({ functionName: "handleAllocateReward", message: err });
+    addCronLog({
+      functionName: "handleAllocateReward",
+      isError: true,
+      message: err,
+    });
     throw err;
   }
 }
 
 async function run() {
   try {
-    let operationsCount = await doWithRetries({
-      functionName: "cron - allocateRewards",
-      functionToExecute: async () =>
-        db.collection("User").countDocuments({ "club.isActive": true }),
-    });
+    let operationsCount = await doWithRetries(async () =>
+      db.collection("User").countDocuments({ "club.isActive": true })
+    );
 
     const batchSize = 100;
     const batches = Math.max(Math.round(operationsCount / batchSize), 1);
@@ -90,11 +85,13 @@ async function run() {
 
     addCronLog({
       functionName: "allocateRewards",
+      isError: false,
       message: `${results.fulfilled} accounts updated and ${results.rejected} failed.`,
     });
   } catch (err) {
-    addErrorLog({
-      functionName: "cron - allocateRewards",
+    addCronLog({
+      functionName: "allocateRewards",
+      isError: true,
       message: err.message,
     });
   }

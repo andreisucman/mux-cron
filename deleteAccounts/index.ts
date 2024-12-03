@@ -1,28 +1,27 @@
 import * as dotenv from "dotenv";
 dotenv.config();
 
-import { db } from "./init.js";
-import doWithRetries from "./helpers/doWithRetries.js";
-import addErrorLog from "./helpers/addErrorLog.js";
-import addCronLog from "./helpers/addCronLog.js";
+import { db } from "init.js";
+import doWithRetries from "helpers/doWithRetries.js";
+import addCronLog from "helpers/addCronLog.js";
 
 async function run() {
   try {
-    const { deletedCount } = await doWithRetries({
-      functionName: "cron - deleteAccounts - delete",
-      functionToExecute: async () =>
-        db.collection("User").deleteMany({
-          deleteOn: { $lt: new Date() },
-        }),
-    });
+    const { deletedCount } = await doWithRetries(async () =>
+      db.collection("User").deleteMany({
+        deleteOn: { $lt: new Date() },
+      })
+    );
 
     addCronLog({
       functionName: "cron - deleteAccounts",
+      isError: false,
       message: `${deletedCount} accounts deleted`,
     });
   } catch (err) {
-    addErrorLog({
+    addCronLog({
       functionName: "cron - deleteAccounts",
+      isError: true,
       message: err.message,
     });
   }

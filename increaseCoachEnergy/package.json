@@ -1,5 +1,5 @@
 {
-  "name": "myo-cron-increase-energy",
+  "name": "mux-cron-increase-energy",
   "version": "1.0.0",
   "main": "index.js",
   "private": true,

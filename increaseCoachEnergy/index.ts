@@ -1,30 +1,27 @@
 import * as dotenv from "dotenv";
 dotenv.config();
 
-import { db } from "./init.js";
-import doWithRetries from "./helpers/doWithRetries.js";
-import addErrorLog from "./helpers/addErrorLog.js";
-import addCronLog from "./helpers/addCronLog.js";
+import { db } from "init.js";
+import doWithRetries from "helpers/doWithRetries.js";
+import addCronLog from "helpers/addCronLog.js";
 
 async function run() {
   const maximumEnergy = Number(process.env.MAXIMUM_COACH_ENERGY);
   const hourly = maximumEnergy / 24;
 
   try {
-    const allUnderMaxEnergy = await doWithRetries({
-      functionName: "cron - increaseCoachEnergy - find all under max energy",
-      functionToExecute: async () =>
-        db
-          .collection("User")
-          .find(
-            {
-              coachEnergy: { $lt: maximumEnergy },
-            },
-            { projection: { coachEnergy: 1 } }
-          )
-          .limit(10000)
-          .toArray(),
-    });
+    const allUnderMaxEnergy = await doWithRetries(async () =>
+      db
+        .collection("User")
+        .find(
+          {
+            coachEnergy: { $lt: maximumEnergy },
+          },
+          { projection: { coachEnergy: 1 } }
+        )
+        .limit(10000)
+        .toArray()
+    );
 
     const toUpdate = allUnderMaxEnergy.map((item) => {
       const payload = {} as { coachEnergy: number };
@@ -45,19 +42,18 @@ async function run() {
       };
     });
 
-    await doWithRetries({
-      functionName: "cron - increaseCoachEnergy - update maximum coach energy",
-      functionToExecute: () => db.collection("User").bulkWrite(toUpdate),
-    });
+    await doWithRetries(() => db.collection("User").bulkWrite(toUpdate));
 
     addCronLog({
       functionName: "increaseCoachEnergy",
-      message: `Completed`,
+      message: "Completed",
+      isError: false,
     });
   } catch (err) {
-    addErrorLog({
-      functionName: "cron - increaseCoachEnergy",
+    addCronLog({
+      functionName: "increaseCoachEnergy",
       message: err.message,
+      isError: true,
     });
   }
 }
