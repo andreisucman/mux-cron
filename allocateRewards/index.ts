@@ -2,53 +2,56 @@ import * as dotenv from "dotenv";
 dotenv.config();
 
 import { ObjectId } from "mongodb";
-import { db } from "init.js";
+import { db, stripe } from "init.js";
 import doWithRetries from "helpers/doWithRetries.js";
 import addCronLog from "helpers/addCronLog.js";
+import { getTotalDaysInCurrentMonth, getIsToday } from "./helpers/utils";
+import pLimit from "p-limit";
 
-async function handleAllocateReward(skip: number) {
+const limit = pLimit(10);
+
+async function handleAllocateReward(
+  skip: number,
+  batchSize: number,
+  dailyRewardShare: number
+) {
   try {
-    const bulkOps: any = [];
+    const updateOps: any = [];
 
     const users = await doWithRetries(() =>
       db
         .collection("User")
         .find(
           { "subscriptions.peek.validUntil": { $gt: new Date() } },
-          { projection: { "club.payouts": 1, "club.trackedUserId": 1 } }
+          { projection: { "club.followingUserId": 1 } }
         )
         .skip(skip)
-        .limit(skip)
+        .limit(batchSize)
         .toArray()
     );
 
     for (const user of users) {
       const { club } = user;
-      const { payouts, trackedUserId } = club;
-      const { oneShareAmount, rewardFund } = payouts;
+      const { followingUserId } = club;
 
-      if (rewardFund - oneShareAmount > 0) {
-        const updateTracking = {
+      if (followingUserId) {
+        const updateOp = {
           updateOne: {
-            filter: { _id: new ObjectId(trackedUserId), "club.isActive": true },
-            update: { $inc: { "club.payouts.rewardEarned": oneShareAmount } },
-          },
-        };
-
-        const updateTracker = {
-          updateOne: {
-            filter: { _id: new ObjectId(user._id) },
-            update: {
-              $inc: { "club.payouts.rewardEarned": oneShareAmount * -1 },
+            filter: {
+              _id: new ObjectId(followingUserId),
             },
+            update: { $inc: { "club.payouts.rewardEarned": dailyRewardShare } },
           },
         };
-
-        bulkOps.push(updateTracking, updateTracker);
+        updateOps.push(updateOp);
       }
     }
 
-    await doWithRetries(async () => db.collection("User").bulkWrite(bulkOps));
+    if (updateOps.length > 0) {
+      await doWithRetries(async () => {
+        await db.collection("User").bulkWrite(updateOps);
+      });
+    }
   } catch (err) {
     addCronLog({
       functionName: "handleAllocateReward",
@@ -61,16 +64,52 @@ async function handleAllocateReward(skip: number) {
 
 async function run() {
   try {
+    const latestAllocation = (await doWithRetries(async () =>
+      db
+        .collection("RewardAllocation")
+        .find({}, { projection: { createdAt: 1 } })
+        .sort({ createdAt: -1 })
+        .next()
+    )) as unknown as { createdAt: Date | null };
+
+    const { createdAt } = latestAllocation || {};
+
+    const isToday = getIsToday(createdAt);
+
+    if (isToday) return;
+
     let operationsCount = await doWithRetries(async () =>
-      db.collection("User").countDocuments({ "club.isActive": true })
+      db.collection("User").countDocuments({
+        "subscriptions.peek.validUntil": { $gt: new Date() },
+      })
     );
+
+    if (operationsCount === 0) return;
+
+    const peekPlanInfo = await doWithRetries(async () =>
+      db
+        .collection("Plan")
+        .findOne({ name: "peek" }, { projection: { priceId: 1 } })
+    );
+
+    const { priceId } = peekPlanInfo;
+
+    const stripePeekPriceObject = await stripe.prices.retrieve(priceId);
+    const price = stripePeekPriceObject.unit_amount / 100;
+
+    const totalDaysInCurrentMonth = getTotalDaysInCurrentMonth();
+    const dailyRewardShare = price / totalDaysInCurrentMonth;
 
     const batchSize = 100;
     const batches = Math.max(Math.round(operationsCount / batchSize), 1);
+
     const promises = [];
 
     for (let i = 0; i < batches; i++) {
-      promises.push(handleAllocateReward(batchSize));
+      const skip = i * batchSize;
+      promises.push(
+        limit(() => handleAllocateReward(skip, batchSize, dailyRewardShare))
+      );
     }
 
     const response = await Promise.allSettled(promises);
@@ -81,6 +120,14 @@ async function run() {
         return a;
       },
       { fulfilled: 0, rejected: 0 }
+    );
+
+    await doWithRetries(async () =>
+      db.collection("RewardAllocation").insertOne({
+        createdAt: new Date(),
+        updated: results.fulfilled,
+        rejected: results.rejected,
+      })
     );
 
     addCronLog({
