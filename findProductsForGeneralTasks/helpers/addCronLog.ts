@@ -14,11 +14,11 @@ const addCronLog = async ({ message, isError, functionName }: Props) => {
     };
 
     await errorLogsCollection.insertOne(newErrorLog);
-    console.log(`Error in ${functionName}: `, message);
+    console.log(`${functionName}: `, message);
 
     return true;
   } catch (error) {
-    throw new Error(`Error thrown in addCronLog: ${error.message}`);
+    console.log(`Error in ${functionName}: `, message);
   }
 };
 

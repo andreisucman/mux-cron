@@ -2,7 +2,6 @@ import * as dotenv from "dotenv";
 dotenv.config();
 
 import doWithRetries from "./helpers/doWithRetries.js";
-import addErrorLog from "./helpers/addErrorLog.js";
 import addCronLog from "./helpers/addCronLog.js";
 import extractFilters from "./functions/extractFilters.js";
 import { db } from "./init.js";
@@ -56,20 +55,20 @@ async function run() {
       },
     ];
 
-    await doWithRetries({
-      functionName: "cron - updateExistingFilters - update",
-      functionToExecute: async () =>
-        db.collection("ExistingFilters").bulkWrite(toUpdate),
-    });
+    await doWithRetries(async () =>
+      db.collection("ExistingFilters").bulkWrite(toUpdate)
+    );
 
     addCronLog({
       functionName: "updateExistingFilters",
       message: `filters updated`,
+      isError: false,
     });
   } catch (err) {
-    addErrorLog({
-      functionName: "cron - updateExistingFilters",
+    addCronLog({
+      functionName: "updateExistingFilters",
       message: err.message,
+      isError: true,
     });
   }
 }
