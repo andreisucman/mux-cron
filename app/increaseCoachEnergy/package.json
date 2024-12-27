@@ -1,0 +1,23 @@
+{
+  "name": "mux-cron-app-increase-energy",
+  "version": "1.0.0",
+  "main": "index.js",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "start": "node index.js",
+    "dev": "npx tsx index.js"
+  },
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "mongodb": "^6.8.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.7.4",
+    "typescript": "^5.6.2"
+  }
+}
