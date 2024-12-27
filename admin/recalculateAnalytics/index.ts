@@ -1,14 +1,12 @@
 import * as dotenv from "dotenv";
 dotenv.config();
 
-import pLimit from "p-limit";
 import { adminDb } from "init.js";
 import doWithRetries from "helpers/doWithRetries.js";
 import getActiveTodayUsersCount from "./functions/getActiveTodayUsersCount";
 import addCronLog from "helpers/addCronLog.js";
 import getAveragesPerUser from "./functions/getAveragesPerUser";
 
-const limit = pLimit(10);
 
 async function run() {
   try {
