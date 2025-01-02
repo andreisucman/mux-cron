@@ -9,18 +9,18 @@ export default async function getFinancialCalculations() {
         .find()
         .sort({ _id: -1 })
         .project({
-          "dashboard.user.totalUsers": 1,
-          "dashboard.user.totalRevenue": 1,
-          "dashboard.user.totalCost": 1,
-          "dashboard.user.totalReward": 1,
-          "dashboard.user.totalWithdrawn": 1,
-          "dashboard.user.totalPayable": 1,
+          "overview.user.totalUsers": 1,
+          "overview.user.totalRevenue": 1,
+          "overview.user.totalCost": 1,
+          "overview.user.totalReward": 1,
+          "overview.user.totalWithdrawn": 1,
+          "overview.user.totalPayable": 1,
         })
         .next()
     );
 
-    const { dashboard } = latestTotalAnalyticsDoc;
-    const { user } = dashboard;
+    const { overview } = latestTotalAnalyticsDoc;
+    const { user } = overview;
     const {
       totalUsers,
       totalRevenue,

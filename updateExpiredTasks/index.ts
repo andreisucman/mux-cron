@@ -5,6 +5,7 @@ import { ObjectId } from "mongodb";
 import doWithRetries from "helpers/doWithRetries.js";
 import addCronLog from "helpers/addCronLog.js";
 import executeInBatches from "helpers/executeInBatches.js";
+import updateAnalytics from "./functions/updateAnalytics";
 import { db } from "init.js";
 
 async function run() {
@@ -27,6 +28,7 @@ async function run() {
     );
 
     const promises = [];
+    const analyticsToUpdate: { [key: string]: number } = {};
 
     for (const task of expiredTasks) {
       const { _id: type, part, userId } = task;
@@ -67,7 +69,24 @@ async function run() {
           )
         )
       );
+
+      const taskGeneralKey = `overview.usage.tasks.tasksExpired`;
+      const taskPartKey = `overview.usage.tasks.part.tasksExpired.${part}`;
+
+      if (analyticsToUpdate[taskGeneralKey]) {
+        analyticsToUpdate[taskGeneralKey] += 1;
+      } else {
+        analyticsToUpdate[taskGeneralKey] = 1;
+      }
+
+      if (analyticsToUpdate[taskPartKey]) {
+        analyticsToUpdate[taskPartKey] += 1;
+      } else {
+        analyticsToUpdate[taskPartKey] = 1;
+      }
     }
+
+    updateAnalytics(analyticsToUpdate);
 
     await executeInBatches({ promises, batchSize: 50 });
 

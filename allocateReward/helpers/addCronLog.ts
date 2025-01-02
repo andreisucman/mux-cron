@@ -6,14 +6,14 @@ const addCronLog = async ({ message, isError, functionName }: Props) => {
   try {
     const errorLogsCollection = adminDb.collection("CronLog");
 
-    const newErrorLog = {
+    const newCronLog = {
       functionName,
       message,
       isError,
       createdAt: new Date(),
     };
 
-    await errorLogsCollection.insertOne(newErrorLog);
+    await errorLogsCollection.insertOne(newCronLog);
     console.log(`${functionName}: `, message);
     
   } catch (error) {

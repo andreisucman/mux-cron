@@ -5,12 +5,12 @@ import { adminDb } from "init.js";
 import doWithRetries from "helpers/doWithRetries.js";
 import getActiveTodayUsersCount from "./functions/getActiveTodayUsersCount";
 import addCronLog from "helpers/addCronLog.js";
+import setUtcMidnight from "./helpers/setUtcMidnight";
 import getAveragesPerUser from "./functions/getAveragesPerUser";
-
 
 async function run() {
   try {
-    const today = new Date().toDateString();
+    const createdAt = setUtcMidnight({ date: new Date() });
 
     const activeTodayUsersCount = await getActiveTodayUsersCount({
       date: new Date(),
@@ -20,17 +20,17 @@ async function run() {
       await getAveragesPerUser();
 
     const setPayload = {
-      "dashboard.user.activeTodayUsers": activeTodayUsersCount,
-      "dashboard.user.averageRevenuePerUser": avgRevenue,
-      "dashboard.user.averageCostPerUser": avgCost,
-      "dashboard.user.averageRewardPerUser": avgReward,
-      "dashboard.accounting.netRevenue": netRevenue,
-      "dashboard.accounting.netCash": netCash,
+      "overview.user.activeTodayUsers": activeTodayUsersCount,
+      "overview.user.averageRevenuePerUser": avgRevenue,
+      "overview.user.averageCostPerUser": avgCost,
+      "overview.user.averageRewardPerUser": avgReward,
+      "overview.accounting.netRevenue": netRevenue,
+      "overview.accounting.netCash": netCash,
     };
 
     await doWithRetries(async () =>
       adminDb.collection("TotalAnalytics").updateOne(
-        { createdAt: today },
+        { createdAt },
         {
           $set: setPayload,
         },
