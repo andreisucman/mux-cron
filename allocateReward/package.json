@@ -1,5 +1,5 @@
 {
-  "name": "mux-cron-app-allocate-reward",
+  "name": "mux-cron-allocate-reward",
   "version": "1.0.0",
   "main": "index.js",
   "private": true,

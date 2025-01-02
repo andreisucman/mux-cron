@@ -4,43 +4,36 @@ dotenv.config();
 import { db } from "init.js";
 import doWithRetries from "helpers/doWithRetries.js";
 import addCronLog from "helpers/addCronLog.js";
+import { daysFrom, getDaysUntilNextMonth } from "./helpers/utils";
 
 async function run() {
-  const maximumEnergy = Number(process.env.MAXIMUM_COACH_ENERGY);
-  const hourly = maximumEnergy / 24;
-
   try {
+    const daysUntilNextMonth = getDaysUntilNextMonth();
+
     await doWithRetries(async () =>
       db.collection("User").updateMany({}, [
         {
           $match: {
-            coachEnergy: { $lt: maximumEnergy },
+            renewsOn: { $lt: new Date() },
           },
         },
         {
           $set: {
-            coachEnergy: {
-              $cond: {
-                if: {
-                  $lt: [{ $add: ["$coachEnergy", hourly] }, maximumEnergy],
-                },
-                then: { $add: ["$coachEnergy", hourly] },
-                else: maximumEnergy,
-              },
-            },
+            left: "$count",
+            renewsOn: daysFrom({ days: daysUntilNextMonth }),
           },
         },
       ])
     );
 
     addCronLog({
-      functionName: "increaseCoachEnergy",
+      functionName: "renewRewards",
       message: "Completed",
       isError: false,
     });
   } catch (err) {
     addCronLog({
-      functionName: "increaseCoachEnergy",
+      functionName: "renewRewards",
       message: err.message,
       isError: true,
     });

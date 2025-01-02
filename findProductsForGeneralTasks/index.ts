@@ -7,7 +7,7 @@ import addCronLog from "helpers/addCronLog.js";
 async function run() {
   try {
     const dayOfMonth = new Date().getDate();
-    if (dayOfMonth % 7 !== 0) return;
+    if (dayOfMonth % 28 !== 0) return;
 
     await doWithRetries(async () =>
       fetch(`${process.env.SERVER_URL!}/findProductsForGeneralTasks`, {

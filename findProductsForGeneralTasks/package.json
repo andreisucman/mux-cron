@@ -1,5 +1,5 @@
 {
-  "name": "mux-cron-app-find-products-for-general-tasks",
+  "name": "mux-cron-find-products-for-general-tasks",
   "version": "1.0.0",
   "main": "index.js",
   "private": true,

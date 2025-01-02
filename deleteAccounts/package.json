@@ -1,5 +1,5 @@
 {
-  "name": "mux-cron-app-delete-accounts",
+  "name": "mux-cron-delete-accounts",
   "version": "1.0.0",
   "main": "index.js",
   "private": true,

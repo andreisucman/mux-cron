@@ -1,8 +1,9 @@
 {
-  "name": "mux-cron-app-update-expired-tasks",
+  "name": "mux-cron-reset-daily-calories",
   "version": "1.0.0",
   "main": "index.js",
   "private": true,
+  "type": "module",
   "scripts": {
     "build": "tsc",
     "start": "node index.js",
