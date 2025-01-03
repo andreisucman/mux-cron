@@ -132,7 +132,7 @@ async function run() {
         )
     );
 
-    updateAnalytics(analyticsToUpdate);
+    updateAnalytics({ incrementPayload: analyticsToUpdate });
 
     addCronLog({
       functionName: "updateExpiredTasksAndRoutine",

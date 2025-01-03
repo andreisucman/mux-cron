@@ -4,7 +4,11 @@ dotenv.config();
 import { db, adminDb, stripe } from "init.js";
 import doWithRetries from "helpers/doWithRetries.js";
 import addCronLog from "helpers/addCronLog.js";
-import { getTotalDaysInCurrentMonth, getIsToday } from "./helpers/utils";
+import setUtcMidnight, {
+  getTotalDaysInCurrentMonth,
+  getIsToday,
+} from "./helpers/utils";
+import { ObjectId } from "mongodb";
 
 async function run() {
   try {
@@ -52,7 +56,7 @@ async function run() {
           {
             $group: {
               _id: null,
-              ids: { $addToSet: "$club.followingUserId" },
+              ids: { $push: "$club.followingUserId" },
             },
           },
           { $project: { _id: 0, ids: 1 } },
@@ -62,19 +66,79 @@ async function run() {
 
     if (toIncrement.ids.length === 0) return;
 
-    const { modifiedCount } = await doWithRetries(async () =>
+    const uniqueToIncrementIds: any[] = [
+      ...new Set(toIncrement.ids.map((id: ObjectId) => String(id))),
+    ];
+
+    const batchSize = 500;
+    const bulkOperations: any[] = [];
+    const now = setUtcMidnight({ date: new Date() });
+
+    const totalAnalyticsUpdate: { [key: string]: number } = {
+      [`overview.accounting.totalPayable`]: 0,
+    };
+    const userAnalyticsUpdates: any[] = [];
+
+    for (let i = 0; i < uniqueToIncrementIds.length; i++) {
+      const followerCount = uniqueToIncrementIds.filter(
+        (id) => id === uniqueToIncrementIds[i]
+      ).length;
+
+      totalAnalyticsUpdate[`overview.accounting.totalPayable`] +=
+        dailyRewardShare;
+
+      userAnalyticsUpdates.push({
+        filter: {
+          userId: new ObjectId(uniqueToIncrementIds[i]),
+          createdAt: now,
+        },
+        update: {
+          $inc: {
+            [`overview.accounting.totalPayable`]: dailyRewardShare,
+            [`accounting.totalPayable`]: dailyRewardShare,
+          },
+        },
+      });
+
+      bulkOperations.push({
+        filter: { _id: new ObjectId(uniqueToIncrementIds[i]) },
+        update: {
+          $inc: { "club.payouts.balance": dailyRewardShare * followerCount },
+        },
+      });
+
+      if (bulkOperations.length >= batchSize) {
+        await doWithRetries(async () =>
+          db.collection("User").bulkWrite(bulkOperations)
+        );
+
+        await doWithRetries(async () =>
+          db.collection("UserAnalytics").bulkWrite(bulkOperations)
+        );
+        bulkOperations.length = 0;
+      }
+    }
+
+    if (bulkOperations.length > 0) {
+      await doWithRetries(async () =>
+        db.collection("User").bulkWrite(bulkOperations)
+      );
+
+      await doWithRetries(async () =>
+        db.collection("UserAnalytics").bulkWrite(bulkOperations)
+      );
+    }
+
+    await doWithRetries(async () =>
       db
-        .collection("User")
-        .updateMany(
-          { _id: { $in: toIncrement.ids } },
-          { $inc: { "club.payouts.balance": dailyRewardShare } }
-        )
+        .collection("TotalAnalytics")
+        .updateOne({ createdAt: now }, { $set: totalAnalyticsUpdate })
     );
 
     addCronLog({
       functionName: "allocateDailyFollowingReward",
       isError: false,
-      message: `Allocated to ${modifiedCount} users.`,
+      message: `Allocated to ${bulkOperations.length} users.`,
     });
   } catch (err) {
     addCronLog({
