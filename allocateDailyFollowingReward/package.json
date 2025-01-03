@@ -1,5 +1,5 @@
 {
-  "name": "mux-cron-allocate-reward",
+  "name": "mux-cron-allocate-daily-following-reward",
   "version": "1.0.0",
   "main": "index.js",
   "private": true,
@@ -16,7 +16,6 @@
     "dotenv": "^16.4.5",
     "luxon": "^3.5.0",
     "mongodb": "^6.8.1",
-    "p-limit": "^6.1.0",
     "stripe": "^17.4.0"
   },
   "devDependencies": {
