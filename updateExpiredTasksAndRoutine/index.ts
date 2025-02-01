@@ -4,7 +4,6 @@ dotenv.config();
 import { ObjectId } from "mongodb";
 import doWithRetries from "helpers/doWithRetries.js";
 import addCronLog from "helpers/addCronLog.js";
-import executeInBatches from "helpers/executeInBatches.js";
 import updateAnalytics from "./functions/updateAnalytics";
 import { db } from "init.js";
 
@@ -50,6 +49,7 @@ async function run() {
     const uniqueUserIds = [
       ...new Set(expiredTasks.map((t) => String(t.userId))),
     ];
+
     const usersToReset = [];
 
     for (const id of uniqueUserIds) {
