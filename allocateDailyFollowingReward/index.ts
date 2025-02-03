@@ -7,7 +7,7 @@ import addCronLog from "helpers/addCronLog.js";
 import setUtcMidnight, {
   getTotalDaysInCurrentMonth,
   getIsToday,
-} from "./helpers/utils";
+} from "helpers/utils.js";
 import { ObjectId } from "mongodb";
 
 async function run() {
@@ -41,7 +41,10 @@ async function run() {
     const price = stripePeekPriceObject.unit_amount / 100;
 
     const totalDaysInCurrentMonth = getTotalDaysInCurrentMonth();
-    const dailyRewardShare = price / totalDaysInCurrentMonth;
+    const dailyRewardShare =
+      (price / totalDaysInCurrentMonth) *
+        (1 - Number(process.env.STRIPE_PROCESSING_SHARE)) -
+      -Number(process.env.STRIPE_PROCESSING_FEE);
 
     const toIncrement = await doWithRetries(async () =>
       db
@@ -64,7 +67,7 @@ async function run() {
         .next()
     );
 
-    if (toIncrement.ids.length === 0) return;
+    if (!toIncrement || toIncrement.ids.length === 0) return;
 
     const uniqueToIncrementIds: any[] = [
       ...new Set(toIncrement.ids.map((id: ObjectId) => String(id))),
@@ -85,25 +88,33 @@ async function run() {
       ).length;
 
       totalAnalyticsUpdate[`overview.accounting.totalPayable`] +=
-        dailyRewardShare;
+        Number(dailyRewardShare);
 
       userAnalyticsUpdates.push({
-        filter: {
-          userId: new ObjectId(uniqueToIncrementIds[i]),
-          createdAt: now,
-        },
-        update: {
-          $inc: {
-            [`overview.accounting.totalPayable`]: dailyRewardShare,
-            [`accounting.totalPayable`]: dailyRewardShare,
+        updateOne: {
+          filter: {
+            userId: new ObjectId(uniqueToIncrementIds[i]),
+            createdAt: now,
           },
+          update: {
+            $inc: {
+              [`overview.accounting.totalPayable`]: dailyRewardShare,
+              [`accounting.totalPayable`]: dailyRewardShare,
+            },
+          },
+          upsert: true,
         },
       });
 
       bulkOperations.push({
-        filter: { _id: new ObjectId(uniqueToIncrementIds[i]) },
-        update: {
-          $inc: { "club.payouts.balance": dailyRewardShare * followerCount },
+        updateOne: {
+          filter: { _id: new ObjectId(uniqueToIncrementIds[i]) },
+          update: {
+            $inc: {
+              "club.payouts.balance": dailyRewardShare * followerCount,
+              netBenefit: dailyRewardShare * followerCount,
+            },
+          },
         },
       });
 
@@ -113,7 +124,7 @@ async function run() {
         );
 
         await doWithRetries(async () =>
-          db.collection("UserAnalytics").bulkWrite(bulkOperations)
+          db.collection("UserAnalytics").bulkWrite(userAnalyticsUpdates)
         );
         bulkOperations.length = 0;
       }

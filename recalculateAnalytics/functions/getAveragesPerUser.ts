@@ -19,6 +19,8 @@ export default async function getFinancialCalculations() {
         .next()
     );
 
+    if (!latestTotalAnalyticsDoc) return;
+
     const { overview } = latestTotalAnalyticsDoc;
     const { user } = overview;
     const {

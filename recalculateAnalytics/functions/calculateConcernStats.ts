@@ -1,5 +1,5 @@
-import { adminDb } from "@/init";
-import doWithRetries from "@/helpers/doWithRetries";
+import { adminDb } from "@/init.js";
+import doWithRetries from "@/helpers/doWithRetries.js";
 
 export default async function getTaskKeysCount() {
   const facetPipeline = [

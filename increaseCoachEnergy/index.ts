@@ -11,26 +11,26 @@ async function run() {
 
   try {
     await doWithRetries(async () =>
-      db.collection("User").updateMany({}, [
+      db.collection("User").updateMany(
         {
-          $match: {
-            coachEnergy: { $lt: maximumEnergy },
-          },
+          coachEnergy: { $lt: maximumEnergy },
         },
-        {
-          $set: {
-            coachEnergy: {
-              $cond: {
-                if: {
-                  $lt: [{ $add: ["$coachEnergy", hourly] }, maximumEnergy],
+        [
+          {
+            $set: {
+              coachEnergy: {
+                $cond: {
+                  if: {
+                    $lt: [{ $add: ["$coachEnergy", hourly] }, maximumEnergy],
+                  },
+                  then: { $add: ["$coachEnergy", hourly] },
+                  else: maximumEnergy,
                 },
-                then: { $add: ["$coachEnergy", hourly] },
-                else: maximumEnergy,
               },
             },
           },
-        },
-      ])
+        ]
+      )
     );
 
     addCronLog({

@@ -3,10 +3,10 @@ dotenv.config();
 
 import { adminDb } from "init.js";
 import doWithRetries from "helpers/doWithRetries.js";
-import getActiveTodayUsersCount from "./functions/getActiveTodayUsersCount";
+import getActiveTodayUsersCount from "./functions/getActiveTodayUsersCount.js";
 import addCronLog from "helpers/addCronLog.js";
-import setUtcMidnight from "./helpers/setUtcMidnight";
-import getAveragesPerUser from "./functions/getAveragesPerUser";
+import setUtcMidnight from "./helpers/setUtcMidnight.js";
+import getAveragesPerUser from "./functions/getAveragesPerUser.js";
 
 async function run() {
   try {
@@ -16,8 +16,11 @@ async function run() {
       date: new Date(),
     });
 
-    const { avgCost, avgRevenue, avgReward, netCash, netRevenue } =
-      await getAveragesPerUser();
+    const response = await getAveragesPerUser();
+
+    if (!response) return;
+
+    const { avgCost, avgRevenue, avgReward, netCash, netRevenue } = response;
 
     const setPayload = {
       "overview.user.activeTodayUsers": activeTodayUsersCount,

@@ -8,39 +8,39 @@ import addCronLog from "helpers/addCronLog.js";
 async function run() {
   try {
     await doWithRetries(async () =>
-      db.collection("User").updateMany({}, [
+      db.collection("User").updateMany(
         {
-          $addFields: {
-            localTime: {
-              $dateAdd: {
-                startDate: new Date(),
-                unit: "minute",
-                amount: "$timeZoneOffsetInMinutes",
+          $expr: {
+            $let: {
+              vars: {
+                localTime: {
+                  $dateAdd: {
+                    startDate: "$$NOW",
+                    unit: "minute",
+                    amount: "$timeZoneOffsetInMinutes",
+                  },
+                },
+              },
+              in: {
+                $and: [
+                  { $eq: [{ $hour: "$$localTime" }, 0] },
+                  { $gte: [{ $minute: "$$localTime" }, 0] },
+                  { $lte: [{ $minute: "$$localTime" }, 10] },
+                  { $gte: [{ $second: "$$localTime" }, 0] },
+                  { $lte: [{ $second: "$$localTime" }, 59] },
+                ],
               },
             },
           },
         },
-        {
-          $project: {
-            localHour: { $hour: "$localTime" },
-            localMinute: { $minute: "$localTime" },
-            localSecond: { $second: "$localTime" },
-            _id: 1,
+        [
+          {
+            $set: {
+              "nutrition.remainingDailyCalories": "$nutrition.dailyCalorieGoal",
+            },
           },
-        },
-        {
-          $match: {
-            localHour: 0,
-            localMinute: { $gte: 0, $lte: 10 },
-            localSecond: { $gte: 0, $lte: 59 },
-          },
-        },
-        {
-          $set: {
-            "nutrition.remainingDailyCalories": "$nutrition.dailyCalorieGoal",
-          },
-        },
-      ])
+        ]
+      )
     );
 
     addCronLog({

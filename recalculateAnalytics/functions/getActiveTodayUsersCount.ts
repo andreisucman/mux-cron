@@ -1,7 +1,7 @@
 import doWithRetries from "@/helpers/doWithRetries.js";
 import { adminDb } from "@/init.js";
-import setUtcMidnight from "@/helpers/setUtcMidnight";
-import { daysFrom } from "@/helpers/utils";
+import setUtcMidnight from "@/helpers/setUtcMidnight.js";
+import { daysFrom } from "@/helpers/utils.js";
 
 type Props = {
   date: Date;
