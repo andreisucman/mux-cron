@@ -1,7 +1,7 @@
 import { adminDb } from "../init.js";
 const addCronLog = async ({ message, isError, functionName }) => {
     try {
-        const errorLogsCollection = adminDb.collection("CronLog");
+        const errorLogsCollection = adminDb.collection("Cron");
         const newCronLog = {
             functionName,
             message,

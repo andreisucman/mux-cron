@@ -67,84 +67,85 @@ async function run() {
         .next()
     );
 
-    if (!toIncrement || toIncrement.ids.length === 0) return;
-
-    const uniqueToIncrementIds: any[] = [
-      ...new Set(toIncrement.ids.map((id: ObjectId) => String(id))),
-    ];
-
-    const batchSize = 500;
     const bulkOperations: any[] = [];
-    const now = setUtcMidnight({ date: new Date() });
 
-    const totalAnalyticsUpdate: { [key: string]: number } = {
-      [`overview.accounting.totalPayable`]: 0,
-    };
-    const userAnalyticsUpdates: any[] = [];
+    if (toIncrement && toIncrement.ids.length > 0) {
+      const uniqueToIncrementIds: any[] = [
+        ...new Set(toIncrement.ids.map((id: ObjectId) => String(id))),
+      ];
 
-    for (let i = 0; i < uniqueToIncrementIds.length; i++) {
-      const followerCount = uniqueToIncrementIds.filter(
-        (id) => id === uniqueToIncrementIds[i]
-      ).length;
+      const batchSize = 500;
+      const now = setUtcMidnight({ date: new Date() });
 
-      totalAnalyticsUpdate[`overview.accounting.totalPayable`] +=
-        Number(dailyRewardShare);
+      const totalAnalyticsUpdate: { [key: string]: number } = {
+        [`overview.accounting.totalPayable`]: 0,
+      };
+      const userAnalyticsUpdates: any[] = [];
 
-      userAnalyticsUpdates.push({
-        updateOne: {
-          filter: {
-            userId: new ObjectId(uniqueToIncrementIds[i]),
-            createdAt: now,
+      for (let i = 0; i < uniqueToIncrementIds.length; i++) {
+        const followerCount = uniqueToIncrementIds.filter(
+          (id) => id === uniqueToIncrementIds[i]
+        ).length;
+
+        totalAnalyticsUpdate[`overview.accounting.totalPayable`] +=
+          Number(dailyRewardShare);
+
+        userAnalyticsUpdates.push({
+          updateOne: {
+            filter: {
+              userId: new ObjectId(uniqueToIncrementIds[i]),
+              createdAt: now,
+            },
+            update: {
+              $inc: {
+                [`overview.accounting.totalPayable`]: dailyRewardShare,
+                [`accounting.totalPayable`]: dailyRewardShare,
+              },
+            },
+            upsert: true,
           },
-          update: {
-            $inc: {
-              [`overview.accounting.totalPayable`]: dailyRewardShare,
-              [`accounting.totalPayable`]: dailyRewardShare,
+        });
+
+        bulkOperations.push({
+          updateOne: {
+            filter: { _id: new ObjectId(uniqueToIncrementIds[i]) },
+            update: {
+              $inc: {
+                "club.payouts.balance": dailyRewardShare * followerCount,
+                netBenefit: dailyRewardShare * followerCount,
+              },
             },
           },
-          upsert: true,
-        },
-      });
+        });
 
-      bulkOperations.push({
-        updateOne: {
-          filter: { _id: new ObjectId(uniqueToIncrementIds[i]) },
-          update: {
-            $inc: {
-              "club.payouts.balance": dailyRewardShare * followerCount,
-              netBenefit: dailyRewardShare * followerCount,
-            },
-          },
-        },
-      });
+        if (bulkOperations.length >= batchSize) {
+          await doWithRetries(async () =>
+            db.collection("User").bulkWrite(bulkOperations)
+          );
 
-      if (bulkOperations.length >= batchSize) {
+          await doWithRetries(async () =>
+            db.collection("UserAnalytics").bulkWrite(userAnalyticsUpdates)
+          );
+          bulkOperations.length = 0;
+        }
+      }
+
+      if (bulkOperations.length > 0) {
         await doWithRetries(async () =>
           db.collection("User").bulkWrite(bulkOperations)
         );
 
         await doWithRetries(async () =>
-          db.collection("UserAnalytics").bulkWrite(userAnalyticsUpdates)
+          db.collection("UserAnalytics").bulkWrite(bulkOperations)
         );
-        bulkOperations.length = 0;
       }
-    }
-
-    if (bulkOperations.length > 0) {
-      await doWithRetries(async () =>
-        db.collection("User").bulkWrite(bulkOperations)
-      );
 
       await doWithRetries(async () =>
-        db.collection("UserAnalytics").bulkWrite(bulkOperations)
+        db
+          .collection("TotalAnalytics")
+          .updateOne({ createdAt: now }, { $set: totalAnalyticsUpdate })
       );
     }
-
-    await doWithRetries(async () =>
-      db
-        .collection("TotalAnalytics")
-        .updateOne({ createdAt: now }, { $set: totalAnalyticsUpdate })
-    );
 
     addCronLog({
       functionName: "allocateDailyFollowingReward",

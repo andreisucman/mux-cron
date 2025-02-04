@@ -7,23 +7,28 @@ import addCronLog from "helpers/addCronLog.js";
 async function run() {
   try {
     const dayOfMonth = new Date().getDate();
-    if (dayOfMonth % 28 !== 0) return;
+    let status = "skipped";
 
-    await doWithRetries(async () =>
-      fetch(`${process.env.SERVER_URL!}/findProductsForGeneralTasks`, {
-        method: "POST",
-        headers: {
-          authorization: process.env.API_KEY!,
-        },
-      })
-    );
+    if (dayOfMonth % 28 === 0) {
+      status = "analyzed";
+
+      await doWithRetries(async () =>
+        fetch(`${process.env.SERVER_URL!}/findProductsForGeneralTasks`, {
+          method: "POST",
+          headers: {
+            authorization: process.env.API_KEY!,
+          },
+        })
+      );
+    }
 
     addCronLog({
       functionName: "findProductsForGeneralTasks",
-      message: "Completed",
+      message: `Completed - ${status}`,
       isError: false,
     });
   } catch (err) {
+    console.log("findProductsForGeneralTasks error", err);
     addCronLog({
       functionName: "findProductsForGeneralTasks",
       message: err.message,

@@ -4,7 +4,7 @@ type Props = { message: string; isError: boolean; functionName: string };
 
 const addCronLog = async ({ message, isError, functionName }: Props) => {
   try {
-    const errorLogsCollection = adminDb.collection("CronLog");
+    const errorLogsCollection = adminDb.collection("Cron");
 
     const newErrorLog = {
       functionName,

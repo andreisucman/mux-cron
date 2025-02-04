@@ -4,7 +4,7 @@ dotenv.config();
 import { ObjectId } from "mongodb";
 import doWithRetries from "helpers/doWithRetries.js";
 import addCronLog from "helpers/addCronLog.js";
-import updateAnalytics from "./functions/updateAnalytics";
+import updateAnalytics from "./functions/updateAnalytics.js";
 import { db } from "init.js";
 
 async function run() {
