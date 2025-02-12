@@ -5,7 +5,7 @@ import { ObjectId } from "mongodb";
 import doWithRetries from "helpers/doWithRetries.js";
 import addCronLog from "helpers/addCronLog.js";
 import updateAnalytics from "./functions/updateAnalytics.js";
-import { db } from "init.js";
+import { db, client } from "init.js";
 
 async function run() {
   try {
@@ -134,13 +134,13 @@ async function run() {
 
     updateAnalytics({ incrementPayload: analyticsToUpdate });
 
-    addCronLog({
+    await addCronLog({
       functionName: "updateExpiredTasksAndRoutine",
       isError: false,
       message: `${modifiedCount} tasks and ${modfiedRoutines} routines inactivated`,
     });
   } catch (err) {
-    addCronLog({
+    await addCronLog({
       functionName: "updateExpiredTasksAndRoutine",
       isError: true,
       message: err.message,
@@ -148,4 +148,13 @@ async function run() {
   }
 }
 
-run();
+run()
+  .then(async () => {
+    await client.close();
+    process.exit(0);
+  })
+  .catch(async (err) => {
+    console.error(err);
+    await client.close();
+    process.exit(1);
+  });
