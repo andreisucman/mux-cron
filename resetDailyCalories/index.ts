@@ -1,7 +1,7 @@
 import * as dotenv from "dotenv";
 dotenv.config();
 
-import { db } from "init.js";
+import { db, client } from "init.js";
 import doWithRetries from "helpers/doWithRetries.js";
 import addCronLog from "helpers/addCronLog.js";
 
@@ -43,13 +43,13 @@ async function run() {
       )
     );
 
-    addCronLog({
+    await addCronLog({
       functionName: "resetDailyCalories",
       message: "Completed",
       isError: false,
     });
   } catch (err) {
-    addCronLog({
+    await addCronLog({
       functionName: "resetDailyCalories",
       message: err.message,
       isError: true,
@@ -57,4 +57,13 @@ async function run() {
   }
 }
 
-run();
+run()
+  .then(async () => {
+    await client.close();
+    process.exit(0);
+  })
+  .catch(async (err) => {
+    console.error(err);
+    await client.close();
+    process.exit(1);
+  });

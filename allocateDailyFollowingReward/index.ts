@@ -1,7 +1,7 @@
 import * as dotenv from "dotenv";
 dotenv.config();
 
-import { db, adminDb, stripe } from "init.js";
+import { db, client, adminDb, stripe } from "init.js";
 import doWithRetries from "helpers/doWithRetries.js";
 import addCronLog from "helpers/addCronLog.js";
 import setUtcMidnight, {
@@ -27,7 +27,7 @@ async function run() {
 
     const isToday = getIsToday(createdAt);
 
-    if (createdAt && isToday) return;
+    if (createdAt && isToday) throw new Error("Already ran today");
 
     const peekPlanInfo = await doWithRetries(async () =>
       db
@@ -147,13 +147,13 @@ async function run() {
       );
     }
 
-    addCronLog({
+    await addCronLog({
       functionName: "allocateDailyFollowingReward",
       isError: false,
       message: `Allocated to ${bulkOperations.length} users.`,
     });
   } catch (err) {
-    addCronLog({
+    await addCronLog({
       functionName: "allocateDailyFollowingReward",
       isError: true,
       message: err.message,
@@ -161,4 +161,13 @@ async function run() {
   }
 }
 
-run();
+run()
+  .then(async () => {
+    await client.close();
+    process.exit(0);
+  })
+  .catch(async (err) => {
+    console.error(err);
+    await client.close();
+    process.exit(1);
+  });

@@ -1,7 +1,7 @@
 import * as dotenv from "dotenv";
 dotenv.config();
 
-import { adminDb } from "init.js";
+import { adminDb, client } from "init.js";
 import doWithRetries from "helpers/doWithRetries.js";
 import getActiveTodayUsersCount from "./functions/getActiveTodayUsersCount.js";
 import addCronLog from "helpers/addCronLog.js";
@@ -43,13 +43,13 @@ async function run() {
       )
     );
 
-    addCronLog({
+    await addCronLog({
       functionName: "updateAnalytics",
       isError: false,
       message: "Analytics updated",
     });
   } catch (err) {
-    addCronLog({
+    await addCronLog({
       functionName: "updateAnalytics",
       isError: true,
       message: err.message,
@@ -57,4 +57,13 @@ async function run() {
   }
 }
 
-run();
+run()
+  .then(async () => {
+    await client.close();
+    process.exit(0);
+  })
+  .catch(async (err) => {
+    console.error(err);
+    await client.close();
+    process.exit(1);
+  });

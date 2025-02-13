@@ -24,11 +24,6 @@ COPY --from=build /usr/src/app/package*.json ./
 ENV NODE_ENV=production
 RUN npm install --include=optional --production --silent
 
-COPY . .
-
-ENV DATABASE_NAME=""
-ENV DATABASE_URI=""
-
 EXPOSE 3005
 RUN chown -R node /usr/src/app
 USER node

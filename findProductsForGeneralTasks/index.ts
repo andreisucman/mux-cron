@@ -1,6 +1,6 @@
 import * as dotenv from "dotenv";
 dotenv.config();
-
+import { client } from "@/init.js";
 import doWithRetries from "helpers/doWithRetries.js";
 import addCronLog from "helpers/addCronLog.js";
 
@@ -22,14 +22,13 @@ async function run() {
       );
     }
 
-    addCronLog({
+    await addCronLog({
       functionName: "findProductsForGeneralTasks",
       message: `Completed - ${status}`,
       isError: false,
     });
   } catch (err) {
-    console.log("findProductsForGeneralTasks error", err);
-    addCronLog({
+    await addCronLog({
       functionName: "findProductsForGeneralTasks",
       message: err.message,
       isError: true,
@@ -37,4 +36,13 @@ async function run() {
   }
 }
 
-run();
+run()
+  .then(async () => {
+    await client.close();
+    process.exit(0);
+  })
+  .catch(async (err) => {
+    console.error(err);
+    await client.close();
+    process.exit(1);
+  });
