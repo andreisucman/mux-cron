@@ -1,5 +1,5 @@
 {
-  "name": "mux-cron-admin-update-analytics",
+  "name": "mux-cron-update-analytics",
   "version": "1.0.0",
   "main": "index.js",
   "private": true,
