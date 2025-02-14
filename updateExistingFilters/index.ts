@@ -14,14 +14,12 @@ async function run() {
 
     const beforeAfterFilters = await extractFilters({
       collection: "BeforeAfter",
+      filter: { isPublic: true },
     });
 
     const proofFilters = await extractFilters({
       collection: "Proof",
-    });
-
-    const styleFilters = await extractFilters({
-      collection: "StyleAnalysis",
+      filter: { isPublic: true },
     });
 
     const toUpdate = [
@@ -46,13 +44,6 @@ async function run() {
           upsert: true,
         },
       },
-      {
-        updateOne: {
-          filter: { collection: "StyleAnalysis" },
-          update: { $set: { filters: styleFilters } },
-          upsert: true,
-        },
-      },
     ];
 
     await doWithRetries(async () =>
@@ -61,7 +52,7 @@ async function run() {
 
     await addCronLog({
       functionName: "updateExistingFilters",
-      message: `filters updated`,
+      message: "Filters updated",
       isError: false,
     });
   } catch (err) {

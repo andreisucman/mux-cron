@@ -3,76 +3,73 @@ import doWithRetries from "helpers/doWithRetries.js";
 
 type Props = {
   collection: string;
+  filter?: { [key: string]: any };
 };
 
-export default async function extractFilters({ collection }: Props) {
+export default async function extractFilters({ collection, filter }: Props) {
   try {
     if (!collection) throw new Error("Collection name is missing");
 
+    const pipeline: { [key: string]: any }[] = [
+      {
+        $project: {
+          part: 1,
+          concern: 1,
+          taskName: 1,
+          nearestConcerns: { $ifNull: ["$nearestConcerns", []] },
+          sex: "$demographics.sex",
+          ageInterval: "$demographics.ageInterval",
+          bodyType: "$demographics.bodyType",
+          skinColor: "$demographics.skinColor",
+          skinType: "$demographics.skinType",
+          ethnicity: "$demographics.ethnicity",
+        },
+      },
+      {
+        $unwind: {
+          path: "$nearestConcerns",
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+      {
+        $group: {
+          _id: null,
+          taskName: { $addToSet: "$taskName" },
+          sex: { $addToSet: "$sex" },
+          part: { $addToSet: "$part" },
+          concern: { $addToSet: "$concern" },
+          nearestConcerns: { $addToSet: "$nearestConcerns" },
+          ageInterval: { $addToSet: "$ageInterval" },
+          bodyType: { $addToSet: "$bodyType" },
+          skinColor: { $addToSet: "$skinColor" },
+          skinType: { $addToSet: "$skinType" },
+          ethnicity: { $addToSet: "$ethnicity" },
+        },
+      },
+      {
+        $project: {
+          _id: 0,
+          taskName: { $setDifference: ["$taskName", [null]] },
+          styleName: { $setDifference: ["$styleName", [null]] },
+          sex: { $setDifference: ["$sex", [null]] },
+          part: { $setDifference: ["$part", [null]] },
+          nearestConcerns: {
+            $setDifference: ["$nearestConcerns", [null]],
+          },
+          concern: { $setDifference: ["$concern", [null]] },
+          ageInterval: { $setDifference: ["$ageInterval", [null]] },
+          bodyType: { $setDifference: ["$bodyType", [null]] },
+          skinColor: { $setDifference: ["$skinColor", [null]] },
+          skinType: { $setDifference: ["$skinType", [null]] },
+          ethnicity: { $setDifference: ["$ethnicity", [null]] },
+        },
+      },
+    ];
+
+    if (filter) pipeline.unshift({ $match: filter });
+
     return await doWithRetries(async () =>
-      db
-        .collection(collection)
-        .aggregate([
-          {
-            $project: {
-              type: 1,
-              part: 1,
-              concern: 1,
-              taskName: 1,
-              styleName: 1,
-              nearestConcerns: { $ifNull: ["$nearestConcerns", []] },
-              sex: "$demographics.sex",
-              ageInterval: "$demographics.ageInterval",
-              bodyType: "$demographics.bodyType",
-              skinColor: "$demographics.skinColor",
-              skinType: "$demographics.skinType",
-              ethnicity: "$demographics.ethnicity",
-            },
-          },
-          {
-            $unwind: {
-              path: "$nearestConcerns",
-              preserveNullAndEmptyArrays: true,
-            },
-          },
-          {
-            $group: {
-              _id: null,
-              taskName: { $addToSet: "$taskName" },
-              styleName: { $addToSet: "$styleName" },
-              sex: { $addToSet: "$sex" },
-              part: { $addToSet: "$part" },
-              type: { $addToSet: "$type" },
-              concern: { $addToSet: "$concern" },
-              nearestConcerns: { $addToSet: "$nearestConcerns" },
-              ageInterval: { $addToSet: "$ageInterval" },
-              bodyType: { $addToSet: "$bodyType" },
-              skinColor: { $addToSet: "$skinColor" },
-              skinType: { $addToSet: "$skinType" },
-              ethnicity: { $addToSet: "$ethnicity" },
-            },
-          },
-          {
-            $project: {
-              _id: 0,
-              taskName: { $setDifference: ["$taskName", [null]] },
-              styleName: { $setDifference: ["$styleName", [null]] },
-              sex: { $setDifference: ["$sex", [null]] },
-              type: { $setDifference: ["$type", [null]] },
-              part: { $setDifference: ["$part", [null]] },
-              nearestConcerns: {
-                $setDifference: ["$nearestConcerns", [null]],
-              },
-              concern: { $setDifference: ["$concern", [null]] },
-              ageInterval: { $setDifference: ["$ageInterval", [null]] },
-              bodyType: { $setDifference: ["$bodyType", [null]] },
-              skinColor: { $setDifference: ["$skinColor", [null]] },
-              skinType: { $setDifference: ["$skinType", [null]] },
-              ethnicity: { $setDifference: ["$ethnicity", [null]] },
-            },
-          },
-        ])
-        .next()
+      db.collection(collection).aggregate(pipeline).next()
     );
   } catch (error) {
     throw error;
