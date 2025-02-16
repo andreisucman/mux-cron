@@ -12,4 +12,6 @@ export function getExponentialBackoffDelay(
   return Math.min(rawDelay + jitter, maxDelay);
 }
 
-
+export function setToUtcMidnight(date: Date) {
+  return new Date(date.setUTCHours(0, 0, 0, 0));
+}

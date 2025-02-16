@@ -9,7 +9,7 @@ import { db, client } from "init.js";
 
 async function run() {
   try {
-    const expiredTasks = await doWithRetries(async () =>
+    const expiredTaskPartGroups = await doWithRetries(async () =>
       db
         .collection("Task")
         .aggregate([
@@ -18,18 +18,17 @@ async function run() {
             $group: {
               _id: "part",
               userId: { $first: "$userId" },
-              type: { $first: "$type" },
               part: { $first: "$part" },
             },
           },
-          { $project: { _id: 1, userId: 1, type: 1, part: 1 } },
+          { $project: { _id: 1, userId: 1, part: 1 } },
         ])
         .toArray()
     );
 
     const analyticsToUpdate: { [key: string]: number } = {};
 
-    for (const task of expiredTasks) {
+    for (const task of expiredTaskPartGroups) {
       const taskGeneralKey = `overview.usage.tasks.tasksExpired`;
       const taskPartKey = `overview.usage.tasks.part.tasksExpired.${task.part}`;
 
@@ -47,42 +46,34 @@ async function run() {
     }
 
     const uniqueUserIds = [
-      ...new Set(expiredTasks.map((t) => String(t.userId))),
+      ...new Set(expiredTaskPartGroups.map((t) => String(t.userId))),
     ];
 
     const usersToReset = [];
 
     for (const id of uniqueUserIds) {
-      const relatedTasks = expiredTasks.filter((t) => t.userId === id);
+      const relatedTasks = expiredTaskPartGroups.filter((t) => t.userId === id);
 
       const resetRecord: { [key: string]: number } = {};
 
       for (const task of relatedTasks) {
-        const { _id: part, type } = task;
+        const { _id: part } = task;
 
-        if (type === "head") {
-          if (part === "face") {
-            resetRecord["streaks.faceStreak"] = 0;
-            resetRecord["streaks.clubFaceStreak"] = 0;
-          }
-          if (part === "mouth") {
-            resetRecord["streaks.mouthStreak"] = 0;
-            resetRecord["streaks.clubMouthStreak"] = 0;
-          }
-          if (part === "scalp") {
-            resetRecord["streaks.scalpStreak"] = 0;
-            resetRecord["streaks.clubScalpStreak"] = 0;
-          }
-        } else if (type === "body") {
-          if (part === "body") {
-            resetRecord["streaks.bodyStreak"] = 0;
-            resetRecord["streaks.clubBodyStreak"] = 0;
-          }
-        } else if (type === "health") {
-          if (part === "health") {
-            resetRecord["streaks.healthStreak"] = 0;
-            resetRecord["streaks.clubHealthStreak"] = 0;
-          }
+        if (part === "face") {
+          resetRecord["streaks.faceStreak"] = 0;
+          resetRecord["streaks.clubFaceStreak"] = 0;
+        }
+        if (part === "mouth") {
+          resetRecord["streaks.mouthStreak"] = 0;
+          resetRecord["streaks.clubMouthStreak"] = 0;
+        }
+        if (part === "scalp") {
+          resetRecord["streaks.scalpStreak"] = 0;
+          resetRecord["streaks.clubScalpStreak"] = 0;
+        }
+        if (part === "body") {
+          resetRecord["streaks.bodyStreak"] = 0;
+          resetRecord["streaks.clubBodyStreak"] = 0;
         }
       }
 
@@ -114,6 +105,20 @@ async function run() {
       );
     }
 
+    const expiredTasks = await doWithRetries(async () =>
+      db
+        .collection("Task")
+        .find(
+          { status: "active", expiresAt: { $lte: new Date() } },
+          {
+            projection: {
+              _id: 1,
+            },
+          }
+        )
+        .toArray()
+    );
+
     const { modifiedCount } = await doWithRetries(async () =>
       db
         .collection("Task")
@@ -122,6 +127,25 @@ async function run() {
           { $set: { status: "expired" } }
         )
     );
+
+    const routineUpdateOps: any[] = expiredTasks.map((obj) => ({
+      updateOne: {
+        filter: {
+          "allTasks.ids._id": obj._id,
+        },
+        update: {
+          $set: {
+            "allTasks.$.ids.$[element].status": "expired",
+          },
+        },
+        arrayFilters: [{ "element._id": obj._id }],
+      },
+    }));
+
+    if (routineUpdateOps.length > 0)
+      await doWithRetries(async () =>
+        db.collection("Routine").bulkWrite(routineUpdateOps)
+      );
 
     const { modifiedCount: modfiedRoutines } = await doWithRetries(async () =>
       db
