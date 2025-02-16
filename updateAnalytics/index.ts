@@ -5,12 +5,12 @@ import { adminDb, client } from "init.js";
 import doWithRetries from "helpers/doWithRetries.js";
 import getActiveTodayUsersCount from "./functions/getActiveTodayUsersCount.js";
 import addCronLog from "helpers/addCronLog.js";
-import setUtcMidnight from "./helpers/setUtcMidnight.js";
+import { setToUtcMidnight } from "./helpers/utils.js";
 import getAveragesPerUser from "./functions/getAveragesPerUser.js";
 
 async function run() {
   try {
-    const createdAt = setUtcMidnight({ date: new Date() });
+    const createdAt = setToUtcMidnight(new Date());
 
     const activeTodayUsersCount = await getActiveTodayUsersCount({
       date: new Date(),

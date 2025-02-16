@@ -1,7 +1,6 @@
 import doWithRetries from "@/helpers/doWithRetries.js";
 import { adminDb } from "@/init.js";
-import setUtcMidnight from "@/helpers/setUtcMidnight.js";
-import { daysFrom } from "@/helpers/utils.js";
+import { daysFrom, setToUtcMidnight } from "@/helpers/utils.js";
 
 type Props = {
   date: Date;
@@ -9,8 +8,8 @@ type Props = {
 
 export default async function getActiveTodayUsersCount({ date }: Props) {
   try {
-    const start = setUtcMidnight({ date });
-    const end = setUtcMidnight({ date: daysFrom({ days: 1, date }) });
+    const start = setToUtcMidnight(date);
+    const end = setToUtcMidnight(daysFrom({ days: 1, date }));
 
     const usersActiveOnThatDate = await doWithRetries(async () =>
       adminDb
