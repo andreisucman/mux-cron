@@ -1,6 +1,6 @@
 import doWithRetries from "@/helpers/doWithRetries.js";
 import { adminDb } from "@/init.js";
-import { setToUtcMidnight } from "@/helpers/utils";
+import { setToUtcMidnight } from "@/helpers/utils.js";
 import { ObjectId } from "mongodb";
 
 type UpdateAnalyticsProps = {

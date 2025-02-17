@@ -56,3 +56,5 @@ export function daysFrom({ date = new Date(), days }: DaysFromProps) {
 export function setToUtcMidnight(date: Date) {
   return new Date(date.setUTCHours(0, 0, 0, 0));
 }
+
+export const safeNumber = (value: any) => (isNaN(value) ? 0 : Number(value));
