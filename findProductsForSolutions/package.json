@@ -1,5 +1,5 @@
 {
-  "name": "mux-cron-find-products-for-general-tasks",
+  "name": "mux-cron-find-products-for-solutions",
   "version": "1.0.0",
   "main": "index.js",
   "private": true,
@@ -14,7 +14,10 @@
   "description": "",
   "dependencies": {
     "dotenv": "^16.4.5",
-    "mongodb": "^6.8.1"
+    "mongodb": "^6.8.1",
+    "natural": "^8.0.1",
+    "openai": "^4.85.2",
+    "zod": "^3.24.2"
   },
   "devDependencies": {
     "@types/node": "^22.7.4",

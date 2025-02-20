@@ -1,9 +1,9 @@
 {
   "compilerOptions": {
-    "module": "ES2022",
-    "moduleResolution": "Node",
-    "noEmit": false,
+    "module": "NodeNext",
+    "moduleResolution": "nodenext",
     "target": "ES2022",
+    "noEmit": false,
     "noImplicitAny": true,
     "removeComments": true,
     "preserveConstEnums": true,
@@ -16,6 +16,7 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["*"],
+      "@functions/*": ["functions/*"],
       "@helpers/*": ["helpers/*"]
     }
   },

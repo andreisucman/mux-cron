@@ -2,6 +2,7 @@ import * as dotenv from "dotenv";
 dotenv.config();
 
 import path from "path";
+import OpenAI from "openai/index.mjs";
 import { MongoClient } from "mongodb";
 import { fileURLToPath } from "url";
 
@@ -11,4 +12,8 @@ const adminDb = client.db(process.env.ADMIN_DATABASE_NAME);
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-export { client, db, adminDb, __dirname };
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
+
+export { client, openai, db, adminDb, __dirname };
