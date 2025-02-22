@@ -16,7 +16,7 @@ async function run() {
       adminDb
         .collection("Cron")
         .find(
-          { functionName: "allocateDailyFollowingReward", isError: false },
+          { functionName: "allocateDailyReward", isError: false },
           { projection: { createdAt: 1 } }
         )
         .sort({ createdAt: -1 })
@@ -41,6 +41,7 @@ async function run() {
     const price = stripePeekPriceObject.unit_amount / 100;
 
     const totalDaysInCurrentMonth = getTotalDaysInCurrentMonth();
+
     const dailyRewardShare =
       (price / totalDaysInCurrentMonth) *
         (1 - Number(process.env.STRIPE_PROCESSING_SHARE)) -
@@ -59,7 +60,7 @@ async function run() {
           {
             $group: {
               _id: null,
-              ids: { $push: "$club.followingUserId" },
+              ids: { $addToSet: "$club.followingUserId" },
             },
           },
           { $project: { _id: 0, ids: 1 } },
@@ -70,10 +71,6 @@ async function run() {
     const bulkOperations: any[] = [];
 
     if (toIncrement && toIncrement.ids.length > 0) {
-      const uniqueToIncrementIds: any[] = [
-        ...new Set(toIncrement.ids.map((id: ObjectId) => String(id))),
-      ];
-
       const batchSize = 500;
       const now = setUtcMidnight({ date: new Date() });
 
@@ -82,10 +79,12 @@ async function run() {
       };
       const userAnalyticsUpdates: any[] = [];
 
-      for (let i = 0; i < uniqueToIncrementIds.length; i++) {
-        const followerCount = uniqueToIncrementIds.filter(
-          (id) => id === uniqueToIncrementIds[i]
+      for (let i = 0; i < toIncrement.ids.length; i++) {
+        const followerCount = toIncrement.ids.filter(
+          (id: ObjectId) => String(id) === String(toIncrement.ids[i])
         ).length;
+
+        const amount = dailyRewardShare * followerCount;
 
         totalAnalyticsUpdate[`overview.accounting.totalPayable`] +=
           Number(dailyRewardShare);
@@ -93,7 +92,7 @@ async function run() {
         userAnalyticsUpdates.push({
           updateOne: {
             filter: {
-              userId: new ObjectId(uniqueToIncrementIds[i]),
+              userId: new ObjectId(toIncrement.ids[i]),
               createdAt: now,
             },
             update: {
@@ -108,11 +107,11 @@ async function run() {
 
         bulkOperations.push({
           updateOne: {
-            filter: { _id: new ObjectId(uniqueToIncrementIds[i]) },
+            filter: { _id: new ObjectId(toIncrement.ids[i]) },
             update: {
               $inc: {
-                "club.payouts.balance": dailyRewardShare * followerCount,
-                netBenefit: dailyRewardShare * followerCount,
+                "club.payouts.balance": amount,
+                netBenefit: amount,
               },
             },
           },
@@ -148,13 +147,13 @@ async function run() {
     }
 
     await addCronLog({
-      functionName: "allocateDailyFollowingReward",
+      functionName: "allocateDailyReward",
       isError: false,
       message: `Allocated to ${bulkOperations.length} users.`,
     });
   } catch (err) {
     await addCronLog({
-      functionName: "allocateDailyFollowingReward",
+      functionName: "allocateDailyReward",
       isError: true,
       message: err.message,
     });

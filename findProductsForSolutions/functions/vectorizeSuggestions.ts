@@ -3,15 +3,11 @@ import createTextEmbedding from "@/functions/createTextEmbedding.js";
 import { upperFirst } from "@/helpers/utils.js";
 import { db } from "@/init.js";
 import doWithRetries from "@/helpers/doWithRetries.js";
-import { CategoryNameEnum } from "@/functions/types.js";
-import {
-  ValidatedSuggestionType,
-  VectorizedSuggestionType,
-} from "@/functions/types.js";
-import { ObjectId } from "mongodb";
+import { CategoryNameEnum, SuggestionType } from "@/functions/types.js";
+import { VectorizedSuggestionType } from "@/functions/types.js";
 
 type Props = {
-  suggestions: ValidatedSuggestionType[];
+  suggestions: SuggestionType[];
   categoryName: CategoryNameEnum;
 };
 
@@ -29,13 +25,13 @@ export default async function vectorizeSuggestions({
     const todayMidnight = new Date();
     todayMidnight.setHours(0, 0, 0, 0);
 
-    const notVectorizedSuggestions = suggestions.filter(
+    const suggestionsToBeVectorized = suggestions.filter(
       (sug) => !sug.vectorizedOn || new Date(sug.vectorizedOn) < todayMidnight
     );
 
     const vectorizedSuggestions: VectorizedSuggestionType[] = [];
 
-    for (const suggestion of notVectorizedSuggestions) {
+    for (const suggestion of suggestionsToBeVectorized) {
       const sentences = tokenizer.tokenize(suggestion.description);
 
       const textsToEmbed = [];
@@ -86,21 +82,16 @@ export default async function vectorizeSuggestions({
     );
 
     const uniqueSuggestionIds = [
-      ...new Set(notVectorizedSuggestions.map((s) => s._id)),
+      ...new Set(suggestionsToBeVectorized.map((s) => s._id)),
     ];
 
-    const response = await doWithRetries(async () =>
-      db.collection("Suggestion").updateMany(
-        {
-          _id: {
-            $in: uniqueSuggestionIds.map((id) => new ObjectId(id)),
-          },
-        },
-        { $set: { vectorizedOn: todayMidnight } }
-      )
+    const updatedSuggestions = suggestions.map((s) =>
+      uniqueSuggestionIds.includes(String(s._id))
+        ? { ...s, vectorizedOn: todayMidnight }
+        : s
     );
 
-    console.log("response", response);
+    return updatedSuggestions;
   } catch (err) {
     throw err;
   }

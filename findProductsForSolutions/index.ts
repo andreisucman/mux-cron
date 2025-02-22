@@ -4,8 +4,13 @@ import { client, db } from "@/init.js";
 import doWithRetries from "helpers/doWithRetries.js";
 import addCronLog from "helpers/addCronLog.js";
 import findProducts from "./functions/findProducts.js";
-import { CategoryNameEnum, SolutionType } from "./functions/types.js";
+import {
+  CategoryNameEnum,
+  SolutionType,
+  SuggestionType,
+} from "./functions/types.js";
 import vectorizeSuggestions from "./functions/vectorizeSuggestions.js";
+import { ObjectId } from "mongodb";
 
 async function run() {
   try {
@@ -22,7 +27,7 @@ async function run() {
           { productTypes: { $ne: [] } },
           {
             projection: {
-              description: 1,
+              key: 1,
               productTypes: 1,
             },
           }
@@ -31,38 +36,84 @@ async function run() {
     )) as unknown as SolutionType[];
 
     const batchSize = 50;
-    const bulkWriteOps: any = [];
+    const solutionBulkwriteOps: any = [];
+    const suggestionBulkwriteOps: any = [];
 
-    for (const solution of solutions) {
+    const uniqueProductTypes = [
+      ...new Set(solutions.flatMap((s) => s.productTypes)),
+    ];
+
+    const readySuggestions: SuggestionType[] = [];
+
+    for (const productType of uniqueProductTypes) {
       const suggestions = await findProducts({
-        solution,
+        productType,
         categoryName: CategoryNameEnum.PRODUCTS,
       });
 
-      await vectorizeSuggestions({
+      const updatedSuggestions = await vectorizeSuggestions({
         suggestions,
         categoryName: CategoryNameEnum.PRODUCTS,
       });
 
-      bulkWriteOps.push({
-        updateOne: {
-          filter: { key: solution.key },
-          update: { $set: { suggestions } },
-        },
-      });
+      readySuggestions.push(...updatedSuggestions);
 
-      if (bulkWriteOps.length >= batchSize) {
+      if (suggestionBulkwriteOps.length >= batchSize) {
         await doWithRetries(async () =>
-          db.collection("Solution").bulkWrite(bulkWriteOps)
+          db.collection("Suggestion").bulkWrite(suggestionBulkwriteOps)
         );
-        bulkWriteOps.length = 0;
+        suggestionBulkwriteOps.length = 0;
+      }
+
+      for (const suggestion of updatedSuggestions) {
+        suggestionBulkwriteOps.push({
+          updateOne: {
+            filter: { _id: new ObjectId(suggestion._id) },
+            update: {
+              $set: suggestion,
+            },
+          },
+        });
       }
     }
 
-    if (bulkWriteOps.length > 0)
+    if (suggestionBulkwriteOps.length > 0)
       await doWithRetries(async () =>
-        db.collection("Solution").bulkWrite(bulkWriteOps)
+        db.collection("Suggestion").bulkWrite(suggestionBulkwriteOps)
       );
+
+    for (const solution of solutions) {
+      const relevantSuggestions = readySuggestions.filter((sug) =>
+        solution.productTypes.includes(sug.suggestion)
+      );
+
+      solutionBulkwriteOps.push({
+        updateOne: {
+          filter: { key: solution.key },
+          update: {
+            $set: {
+              suggestions: relevantSuggestions.map((s) => {
+                const { vectorizedOn, ...rest } = s;
+                return rest;
+              }),
+            },
+          },
+        },
+      });
+
+      if (solutionBulkwriteOps.length >= batchSize) {
+        await doWithRetries(async () =>
+          db.collection("Solution").bulkWrite(solutionBulkwriteOps)
+        );
+        solutionBulkwriteOps.length = 0;
+      }
+    }
+
+    if (solutionBulkwriteOps.length > 0)
+      await doWithRetries(async () =>
+        db.collection("Solution").bulkWrite(solutionBulkwriteOps)
+      );
+
     // }
 
     await addCronLog({

@@ -15,3 +15,12 @@ export function getExponentialBackoffDelay(
 export function setToUtcMidnight(date: Date) {
   return new Date(date.setUTCHours(0, 0, 0, 0));
 }
+
+type DaysFromProps = {
+  date?: Date;
+  days: number;
+};
+
+export function daysFrom({ date = new Date(), days }: DaysFromProps) {
+  return new Date(new Date(date).getTime() + days * 24 * 60 * 60 * 1000);
+}

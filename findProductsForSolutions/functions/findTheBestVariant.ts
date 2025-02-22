@@ -1,44 +1,40 @@
 import z from "zod";
 import askRepeatedly from "functions/askRepeatedly.js";
 import {
-  ValidatedSuggestionType,
   SimplifiedProductType,
   CategoryNameEnum,
   RunType,
+  SuggestionType,
 } from "./types.js";
 import { zodResponseFormat } from "openai/helpers/zod.mjs";
 
 type Props = {
   categoryName: CategoryNameEnum;
-  validProducts: ValidatedSuggestionType[];
+  suggestions: SuggestionType[];
   commonListOfFeatures: string[];
-  taskDescription: string;
 };
 
 export default async function findTheBestVariant({
   categoryName,
-  validProducts,
-  taskDescription,
+  suggestions,
   commonListOfFeatures,
 }: Props) {
-  const simplifiedVariants = validProducts.map(
-    (variant: ValidatedSuggestionType) => ({
-      name: variant.name,
-      description: variant.description,
-      asin: variant.asin,
-      rating: variant.rating,
-      priceAndUnit: variant.priceAndUnit,
-    })
-  );
+  const simplifiedVariants = suggestions.map((variant: SuggestionType) => ({
+    _id: variant._id,
+    name: variant.name,
+    description: variant.description,
+    rating: variant.rating,
+    priceAndUnit: variant.priceAndUnit,
+  }));
 
   const list = simplifiedVariants
     .map(
-      (rec: ValidatedSuggestionType, index: number) =>
-        `Product ${index + 1}. Name: ${rec.name}. Description: ${
-          rec.description
-        }. Asin: ${rec.asin}. Reviews rating: ${rec.rating}. Price and unit: ${
-          rec.priceAndUnit
-        }`
+      (rec: SuggestionType, index: number) =>
+        `Product ${index + 1}. _Id: ${rec._id}. Name: ${
+          rec.name
+        }. Description: ${rec.description}. Reviews rating: ${
+          rec.rating
+        }. Price and unit: ${rec.priceAndUnit}`
     )
     .join("\n");
 
@@ -58,7 +54,7 @@ export default async function findTheBestVariant({
 
   try {
     /* find the related variants */
-    const systemContent = `You are a professional purchase product analyst. The user gives you a list of products. Your goal is to rank the products based on their features for this use case: ${taskDescription}. Consider rank 1 to be the highest. Be detailed. Use casual language. Be objective. Think step-by-step.`;
+    const systemContent = `You are a professional purchase product analyst. The user gives you a list of products. Your goal is to rank the products based on their features. Consider rank 1 to be the highest. Be detailed. Use casual language. Be objective. Think step-by-step.`;
 
     const runs: RunType[] = [
       {
@@ -89,10 +85,9 @@ export default async function findTheBestVariant({
     const FindTheBestVariantResponseType = z.object({
       rankedProducts: z.array(
         z.object({
+          _id: z.string().describe("the id of the product"),
           rank: z.number().describe("the rank of the product"),
-          name: z.string().describe("name of the product"),
           reasoning: z.string().describe("your reasoning for the rank"),
-          asin: z.string().describe("asin of the product"),
           analysisResult: z.object(analysisObject),
         })
       ),
@@ -121,9 +116,11 @@ export default async function findTheBestVariant({
 
     const { rankedProducts } = response || [];
 
-    const enrichedProducts: ValidatedSuggestionType[] = rankedProducts
+    const enrichedProducts: SuggestionType[] = rankedProducts
       .map((product: SimplifiedProductType) => {
-        const match = validProducts.find((vp) => vp.asin === product.asin);
+        const match = suggestions.find(
+          (vp) => String(vp._id) === String(product._id)
+        );
 
         if (!match) return;
 

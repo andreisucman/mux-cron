@@ -7,18 +7,16 @@ import { CategoryNameEnum } from "@/functions/types.js";
 type Props = {
   categoryName: CategoryNameEnum;
   variantData: { name: string; description: string };
-  taskDescription: string;
 };
 
 export default async function extractVariantFeatures({
   variantData,
   categoryName,
-  taskDescription,
 }: Props) {
   const { name, description } = variantData;
 
   try {
-    const systemContent = `You are a strict and objective analyst. You are given a name and description of a product from amazon.com after ###. Extract all of it's features that are related to this use case: ${taskDescription}. Think step-by-step. ### Product name: ${name}. Product description: ${description}.`;
+    const systemContent = `You are a strict and objective analyst. You are given a name and description of a product from amazon.com after ###. Extract all of it's features. Think step-by-step. ### Product name: ${name}. Product description: ${description}.`;
 
     const VariantFeaturesType = z.object({
       featuresAndFunctionalities: z.array(z.string()),

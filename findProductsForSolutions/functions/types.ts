@@ -1,14 +1,13 @@
-import { ObjectId } from "mongodb";
 import {
   ChatCompletionMessageParam,
   ChatCompletionContentPart,
 } from "openai/src/resources/index.js";
 
 export type SimplifiedProductType = {
-  name: string;
-  description: string;
-  asin: string;
-  rating: number;
+  _id: string;
+  rank: number;
+  reasoning: string;
+  analysisResult: { [key: string]: boolean };
 };
 
 export type SuggestionType = {
@@ -23,6 +22,9 @@ export type SuggestionType = {
   description: string;
   priceAndUnit: string;
   vectorizedOn: Date;
+  rank?: number;
+  reasoning?: string;
+  analysisResult?: { [key: string]: boolean };
 };
 
 export type VectorizedSuggestionType = {
@@ -36,10 +38,6 @@ export type VectorizedSuggestionType = {
   embedding: number[];
   createdAt: Date;
 };
-
-export interface ValidatedSuggestionType extends SuggestionType {
-  verdict?: boolean;
-}
 
 export enum PartEnum {
   FACE = "face",
