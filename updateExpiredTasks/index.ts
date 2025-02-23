@@ -22,27 +22,30 @@ async function run() {
               part: { $first: "$part" },
             },
           },
-          { $project: { _id: 1, userId: 1, part: 1 } },
+          { $project: { _id: 1, userId: 1, part: 1, isCreated: 1 } },
         ])
         .toArray()
     );
 
     const analyticsToUpdate: { [key: string]: number } = {};
 
+    const addParamsToAnalytics = (key: string) => {
+      analyticsToUpdate[key] = (analyticsToUpdate[key] || 0) + 1;
+    };
+
     for (const task of expiredTaskPartGroups) {
       const taskGeneralKey = `overview.usage.tasks.tasksExpired`;
       const taskPartKey = `overview.usage.tasks.part.tasksExpired.${task.part}`;
 
-      if (analyticsToUpdate[taskGeneralKey]) {
-        analyticsToUpdate[taskGeneralKey] += 1;
-      } else {
-        analyticsToUpdate[taskGeneralKey] = 1;
-      }
+      addParamsToAnalytics(taskGeneralKey);
+      addParamsToAnalytics(taskPartKey);
 
-      if (analyticsToUpdate[taskPartKey]) {
-        analyticsToUpdate[taskPartKey] += 1;
-      } else {
-        analyticsToUpdate[taskPartKey] = 1;
+      if (task.isCreated) {
+        const manualTaskGeneralKey = `overview.usage.tasks.manualTasksExpired`;
+        const manualTaskPartKey = `overview.usage.tasks.part.manualTasksExpired.${task.part}`;
+
+        addParamsToAnalytics(manualTaskGeneralKey);
+        addParamsToAnalytics(manualTaskPartKey);
       }
     }
 

@@ -6,7 +6,7 @@ type Props = {
   date: Date;
 };
 
-export default async function getActiveTodayUsersCount({ date }: Props) {
+export default async function getActiveUsersCount({ date }: Props) {
   try {
     const start = setToUtcMidnight(date);
     const end = setToUtcMidnight(daysFrom({ days: 1, date }));
