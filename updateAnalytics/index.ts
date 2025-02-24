@@ -3,7 +3,7 @@ dotenv.config();
 
 import { adminDb, client } from "init.js";
 import doWithRetries from "helpers/doWithRetries.js";
-import getActiveUsersCount from "./functions/getActiveUsersCount.js";
+import getActiveUsersCount from "./functions/getUsersStats.js";
 import addCronLog from "helpers/addCronLog.js";
 import { setToUtcMidnight } from "./helpers/utils.js";
 import getAveragesPerUser from "./functions/getAveragesPerUser.js";
@@ -12,18 +12,26 @@ async function run() {
   try {
     const createdAt = setToUtcMidnight(new Date());
 
-    const activeTodayUsersCount = await getActiveUsersCount({
+    const {
+      usersActiveOnThatDate = 0,
+      blockedUsers = 0,
+      suspendedUsers = 0,
+    } = await getActiveUsersCount({
       date: new Date(),
     });
 
-    const response = await getAveragesPerUser();
-
-    if (!response) return;
-
-    const { avgCost, avgRevenue, avgReward, netCash, netRevenue } = response;
+    const {
+      avgCost = 0,
+      avgRevenue = 0,
+      avgReward = 0,
+      netCash = 0,
+      netRevenue = 0,
+    } = await getAveragesPerUser();
 
     const setPayload = {
-      "overview.user.count.activeTodayUsers": activeTodayUsersCount,
+      "overview.user.count.blockedUsers": suspendedUsers,
+      "overview.user.count.suspendedUsers": blockedUsers,
+      "overview.user.count.activeTodayUsers": usersActiveOnThatDate,
       "overview.user.averageRevenuePerUser": avgRevenue,
       "overview.user.averageCostPerUser": avgCost,
       "overview.user.averageRewardPerUser": avgReward,
