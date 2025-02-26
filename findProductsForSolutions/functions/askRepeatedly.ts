@@ -4,7 +4,7 @@ dotenv.config();
 import doWithRetries from "helpers/doWithRetries.js";
 import { AskOpenaiProps, RunType } from "@/functions/types.js";
 import { CategoryNameEnum } from "@/functions/types.js";
-import askOpenai from "@/functions/askOpenAi.js";
+import askOpenai from "@/functions/askOpenai.js";
 import generateSeed from "@/functions/generateSeed.js";
 import { ChatCompletionMessageParam } from "openai/resources/index.mjs";
 

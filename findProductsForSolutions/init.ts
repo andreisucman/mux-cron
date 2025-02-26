@@ -2,7 +2,7 @@ import * as dotenv from "dotenv";
 dotenv.config();
 
 import path from "path";
-import OpenAI from "openai/index.mjs";
+import OpenAI from "openai";
 import { MongoClient } from "mongodb";
 import { fileURLToPath } from "url";
 
