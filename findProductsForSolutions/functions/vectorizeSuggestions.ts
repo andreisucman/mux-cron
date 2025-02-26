@@ -4,24 +4,46 @@ import { upperFirst } from "@/helpers/utils.js";
 import { db } from "@/init.js";
 import doWithRetries from "@/helpers/doWithRetries.js";
 import { CategoryNameEnum, SuggestionType } from "@/functions/types.js";
-import { VectorizedSuggestionType } from "@/functions/types.js";
+import { AnyBulkWriteOperation } from "mongodb";
 
 type Props = {
   suggestions: SuggestionType[];
   categoryName: CategoryNameEnum;
 };
 
+type UpdateOp = AnyBulkWriteOperation<Document>;
+
 const tokenizer = new natural.SentenceTokenizer([]);
+
+async function processUpdates(
+  insertOps: UpdateOp[],
+  suggestions: SuggestionType[],
+  todayMidnight: Date
+) {
+  if (insertOps.length === 0) return suggestions;
+
+  await doWithRetries(async () =>
+    db.collection("SuggestionVector").bulkWrite(insertOps as any)
+  );
+
+  const uniqueUpdatedIds = [
+    ...new Set(
+      insertOps.map((op: any) => String(op.insertOne.document.suggestionId))
+    ),
+  ];
+
+  return suggestions.map((s) =>
+    uniqueUpdatedIds.includes(String(s._id))
+      ? { ...s, vectorizedOn: todayMidnight }
+      : s
+  );
+}
 
 export default async function vectorizeSuggestions({
   categoryName,
   suggestions,
 }: Props) {
   try {
-    await doWithRetries(async () =>
-      db.collection("SuggestionVector").deleteMany({})
-    );
-
     const todayMidnight = new Date();
     todayMidnight.setHours(0, 0, 0, 0);
 
@@ -29,7 +51,10 @@ export default async function vectorizeSuggestions({
       (sug) => !sug.vectorizedOn || new Date(sug.vectorizedOn) < todayMidnight
     );
 
-    const vectorizedSuggestions: VectorizedSuggestionType[] = [];
+    const batchSize = 50;
+    let insertOps: any[] = [];
+    let updatedSuggestions: any[] = [];
+    const vectorizedSuggestions: any[] = [];
 
     for (const suggestion of suggestionsToBeVectorized) {
       const sentences = tokenizer.tokenize(suggestion.description);
@@ -56,6 +81,7 @@ export default async function vectorizeSuggestions({
         });
 
         const {
+          _id,
           name,
           url,
           suggestion: suggestionName,
@@ -63,33 +89,57 @@ export default async function vectorizeSuggestions({
           priceAndUnit,
         } = suggestion;
 
-        vectorizedSuggestions.push({
-          suggestionId: suggestion._id,
-          suggestionName,
-          name,
-          url,
-          rating,
-          priceAndUnit,
-          embeddingText: textsToEmbed[j],
-          embedding,
-          createdAt: new Date(),
-        });
+        const newRecord = {
+          insertOne: {
+            document: {
+              suggestionId: _id,
+              suggestionName,
+              name,
+              url,
+              rating,
+              priceAndUnit,
+              embeddingText: textsToEmbed[j],
+              embedding,
+              createdAt: new Date(),
+            },
+          },
+        };
+
+        insertOps.push(newRecord);
+
+        if (insertOps.length > 0 && insertOps.length >= batchSize) {
+          const newVectorizedSuggestions = await processUpdates(
+            insertOps,
+            suggestions,
+            todayMidnight
+          );
+
+          vectorizedSuggestions.push(...newVectorizedSuggestions);
+
+          insertOps = [];
+        }
       }
     }
 
-    await doWithRetries(async () =>
-      db.collection("SuggestionVector").insertMany(vectorizedSuggestions)
-    );
+    if (insertOps.length > 0) {
+      const newVectorizedSuggestions = await processUpdates(
+        insertOps,
+        suggestions,
+        todayMidnight
+      );
 
-    const uniqueSuggestionIds = [
-      ...new Set(suggestionsToBeVectorized.map((s) => s._id)),
-    ];
+      vectorizedSuggestions.push(...newVectorizedSuggestions);
+    }
 
-    const updatedSuggestions = suggestions.map((s) =>
-      uniqueSuggestionIds.includes(String(s._id))
-        ? { ...s, vectorizedOn: todayMidnight }
-        : s
-    );
+    const vectorizedKeys = vectorizedSuggestions.map((s) => s.suggestionName);
+
+    updatedSuggestions = updatedSuggestions.map((s) => {
+      if (vectorizedKeys.includes(s.suggestion)) {
+        return { ...s, vectorizedOn: todayMidnight };
+      } else {
+        return s;
+      }
+    });
 
     return updatedSuggestions;
   } catch (err) {

@@ -1,7 +1,5 @@
-import createACommonTableOfProductFeatures from "@/functions/createACommonTableOfProductFeatures.js";
 import extractVariantFeatures from "functions/extractVariantFeatures.js";
 import doWithRetries from "helpers/doWithRetries.js";
-import findTheBestVariant from "functions/findTheBestVariant.js";
 import { SuggestionType, CategoryNameEnum } from "@/functions/types.js";
 import { db } from "init.js";
 
@@ -15,7 +13,7 @@ export default async function findProducts({
   categoryName,
 }: Props) {
   try {
-    const suggestions = (await doWithRetries(async () =>
+    let suggestions = (await doWithRetries(async () =>
       db
         .collection("Suggestion")
         .find({
@@ -24,29 +22,22 @@ export default async function findProducts({
         .toArray()
     )) as unknown as SuggestionType[];
 
-    const extractFeaturesPromises = suggestions.map((s) =>
+    suggestions = suggestions.map((s) =>
+      s.description ? s : { ...s, description: s.name }
+    );
+
+    const extractFeaturesPromises = suggestions.map((s: SuggestionType) =>
       extractVariantFeatures({
-        variantData: s,
+        suggestion: s,
         categoryName,
       })
     );
 
-    const extractedFeaturesObjectsArray = await Promise.all(
+    const suggestionsWithProductFeatures = await Promise.all(
       extractFeaturesPromises
     );
 
-    const commonListOfFeatures = await createACommonTableOfProductFeatures({
-      extractedVariantFeatures: extractedFeaturesObjectsArray,
-      categoryName,
-    });
-
-    const chosenProductsResults = await findTheBestVariant({
-      commonListOfFeatures,
-      suggestions,
-      categoryName,
-    });
-
-    return chosenProductsResults;
+    return suggestionsWithProductFeatures;
   } catch (err) {
     throw err;
   }

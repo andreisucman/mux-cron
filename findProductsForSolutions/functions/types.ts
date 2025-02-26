@@ -12,8 +12,8 @@ export type SimplifiedProductType = {
 
 export type SuggestionType = {
   _id: string;
-  type: string;
-  suggestion: "product" | "place";
+  type: "product" | "place";
+  suggestion: string;
   asin: string;
   name: string;
   image: string;
@@ -22,9 +22,8 @@ export type SuggestionType = {
   description: string;
   priceAndUnit: string;
   vectorizedOn: Date;
-  rank?: number;
-  reasoning?: string;
-  analysisResult?: { [key: string]: boolean };
+  intro?: string;
+  productFeatures?: string[];
 };
 
 export type VectorizedSuggestionType = {
