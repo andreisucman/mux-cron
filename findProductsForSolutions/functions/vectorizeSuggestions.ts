@@ -53,30 +53,30 @@ export default async function vectorizeSuggestions({
 
     const batchSize = 100;
     let insertOps: any[] = [];
-    const vectorizedSuggestions: SuggestionType[] = [];
+    const latestSuggestionsMap = new Map<string, SuggestionType>();
 
     for (const suggestion of suggestionsToBeVectorized) {
       const sentences = tokenizer.tokenize(suggestion.description);
 
       const textsToEmbed = [];
-
-      const step = 5;
-      for (let i = 0; i < sentences.length; i += step) {
-        const descriptionSentences = sentences.slice(i, (i += step)).join("\n");
+      let i = 0;
+      while (i < sentences.length) {
+        const chunk = sentences.slice(i, i + 5).join("\n");
         textsToEmbed.push(
           `${upperFirst(suggestion.type)}: ${suggestion.suggestion}.\nName: ${
             suggestion.name
-          }.\nDescription: ${descriptionSentences}.\nRating: ${
+          }.\nDescription: ${chunk}.\nRating: ${
             suggestion.rating
           }.\nPrice and unit: ${suggestion.priceAndUnit}.`
         );
+        i += 5;
       }
 
-      for (let j = 0; j < textsToEmbed.length; j++) {
+      for (const text of textsToEmbed) {
         const embedding = await createTextEmbedding({
           categoryName,
           dimensions: 1536,
-          text: textsToEmbed[j],
+          text,
         });
 
         const {
@@ -88,7 +88,7 @@ export default async function vectorizeSuggestions({
           priceAndUnit,
         } = suggestion;
 
-        const newRecord = {
+        insertOps.push({
           insertOne: {
             document: {
               suggestionId: _id,
@@ -97,14 +97,12 @@ export default async function vectorizeSuggestions({
               url,
               rating,
               priceAndUnit,
-              embeddingText: textsToEmbed[j],
+              embeddingText: text,
               embedding,
               createdAt: new Date(),
             },
           },
-        };
-
-        insertOps.push(newRecord);
+        });
 
         if (insertOps.length >= batchSize) {
           const newVectorizedSuggestions = await processUpdates(
@@ -112,9 +110,9 @@ export default async function vectorizeSuggestions({
             suggestions,
             todayMidnight
           );
-
-          vectorizedSuggestions.push(...newVectorizedSuggestions);
-
+          newVectorizedSuggestions.forEach((s) =>
+            latestSuggestionsMap.set(String(s._id), s)
+          );
           insertOps = [];
         }
       }
@@ -126,20 +124,14 @@ export default async function vectorizeSuggestions({
         suggestions,
         todayMidnight
       );
-
-      vectorizedSuggestions.push(...newVectorizedSuggestions);
+      newVectorizedSuggestions.forEach((s) =>
+        latestSuggestionsMap.set(String(s._id), s)
+      );
     }
 
     const updatedSuggestions = suggestions.map((suggestion) => {
-      const matchingVectorizedSuggestion = vectorizedSuggestions.find(
-        (v) => v.suggestion === suggestion.suggestion
-      );
-
-      if (matchingVectorizedSuggestion) {
-        return { ...suggestion, ...matchingVectorizedSuggestion };
-      }
-
-      return suggestion;
+      const updated = latestSuggestionsMap.get(String(suggestion._id));
+      return updated ? updated : suggestion;
     });
 
     return updatedSuggestions;

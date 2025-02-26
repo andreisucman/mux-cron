@@ -43,7 +43,7 @@ async function run() {
         })
       )
     );
-    
+
     const vectorizedSuggestions = await vectorizeSuggestions({
       suggestions: updatedSuggestions.filter(Boolean),
       categoryName: CategoryNameEnum.PRODUCTS,
