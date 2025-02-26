@@ -12,112 +12,109 @@ import {
 import vectorizeSuggestions from "./functions/vectorizeSuggestions.js";
 import extractVariantFeatures from "./functions/extractVariantFeatures.js";
 
+async function bulkWriteInBatches(
+  collectionName: string,
+  ops: any,
+  batchSize = 500
+) {
+  for (let i = 0; i < ops.length; i += batchSize) {
+    await doWithRetries(() =>
+      db.collection(collectionName).bulkWrite(ops.slice(i, i + batchSize))
+    );
+  }
+}
+
 async function run() {
   try {
-    let allSuggestions = (await doWithRetries(async () =>
+    let suggestions = (await doWithRetries(() =>
       db.collection("Suggestion").find().toArray()
     )) as unknown as SuggestionType[];
 
-    allSuggestions = allSuggestions.map((s) =>
-      s.description ? s : { ...s, description: s.name }
+    suggestions = suggestions.map((s) => ({
+      ...s,
+      description: s.description || s.name,
+    }));
+
+    const updatedSuggestions = await Promise.all(
+      suggestions.map((suggestion) =>
+        extractVariantFeatures({
+          suggestion,
+          categoryName: CategoryNameEnum.PRODUCTS,
+        })
+      )
     );
-
-    let updatedSuggestions: SuggestionType[] = [];
-    for (const suggestion of allSuggestions) {
-      const updatedSuggestion = await extractVariantFeatures({
-        suggestion,
-        categoryName: CategoryNameEnum.PRODUCTS,
-      });
-      updatedSuggestions.push(updatedSuggestion);
-    }
-
-    updatedSuggestions = await vectorizeSuggestions({
-      suggestions: updatedSuggestions.filter((s) => Boolean(s)),
+    
+    const vectorizedSuggestions = await vectorizeSuggestions({
+      suggestions: updatedSuggestions.filter(Boolean),
       categoryName: CategoryNameEnum.PRODUCTS,
     });
 
-    const batchSize = 50;
-    let solutionBulkwriteOps: any = [];
-    let suggestionBulkwriteOps: any = [];
+    const suggestionOps = vectorizedSuggestions.map(({ _id, ...rest }) => ({
+      updateOne: { filter: { _id: new ObjectId(_id) }, update: { $set: rest } },
+    }));
 
-    for (const suggestion of updatedSuggestions) {
-      const { _id, ...rest } = suggestion;
-      suggestionBulkwriteOps.push({
-        updateOne: {
-          filter: { _id: new ObjectId(_id) },
-          update: {
-            $set: rest,
-          },
-        },
-      });
-    }
+    if (suggestionOps.length)
+      await bulkWriteInBatches("Suggestion", suggestionOps);
 
-    if (suggestionBulkwriteOps.length > 0) {
-      await doWithRetries(async () =>
-        db.collection("Suggestion").bulkWrite(suggestionBulkwriteOps)
-      );
-    }
-
-    if (
-      suggestionBulkwriteOps.length > 0 &&
-      suggestionBulkwriteOps.length >= batchSize
-    ) {
-      await doWithRetries(async () =>
-        db.collection("Suggestion").bulkWrite(suggestionBulkwriteOps)
-      );
-      suggestionBulkwriteOps = [];
-    }
-
-    const solutions = (await doWithRetries(async () =>
+    const solutions = (await doWithRetries(() =>
       db
         .collection("Solution")
         .find(
           { productTypes: { $ne: [] } },
-          {
-            projection: {
-              key: 1,
-              productTypes: 1,
-            },
-          }
+          { projection: { key: 1, productTypes: 1 } }
         )
         .toArray()
     )) as unknown as SolutionType[];
 
-    for (const solution of solutions) {
-      const relevantSuggestions = allSuggestions.filter((sug) =>
-        solution.productTypes.includes(sug.suggestion)
-      );
-
-      solutionBulkwriteOps.push({
+    const solutionOps = solutions.map((solution) => {
+      const suggestionsForSolution = vectorizedSuggestions
+        .filter((sug) => solution.productTypes.includes(sug.suggestion))
+        .map(({ vectorizedOn, ...rest }) => rest);
+      return {
         updateOne: {
           filter: { key: solution.key },
-          update: {
-            $set: {
-              suggestions: relevantSuggestions.map((s) => {
-                const { vectorizedOn, ...rest } = s;
-                return rest;
-              }),
-            },
-          },
+          update: { $set: { suggestions: suggestionsForSolution } },
         },
-      });
+      };
+    });
+    if (solutionOps.length) await bulkWriteInBatches("Solution", solutionOps);
 
-      if (
-        solutionBulkwriteOps.length > 0 &&
-        solutionBulkwriteOps.length >= batchSize
-      ) {
-        await doWithRetries(async () =>
-          db.collection("Solution").bulkWrite(solutionBulkwriteOps)
-        );
-        solutionBulkwriteOps = [];
-      }
-    }
+    const todayMidnight = new Date();
+    todayMidnight.setHours(0, 0, 0, 0);
+    const uniqueProductTypes = [
+      ...new Set(vectorizedSuggestions.map((s) => s.suggestion)),
+    ];
 
-    if (solutionBulkwriteOps.length > 0) {
-      await doWithRetries(async () =>
-        db.collection("Solution").bulkWrite(solutionBulkwriteOps)
-      );
-    }
+    const tasks = (await doWithRetries(() =>
+      db
+        .collection("Task")
+        .find(
+          {
+            startsAt: { $gt: todayMidnight },
+            productTypes: { $in: uniqueProductTypes },
+          },
+          { projection: { key: 1, productTypes: 1 } }
+        )
+        .toArray()
+    )) as unknown as SolutionType[];
+
+    const uniqueTasks = tasks.filter(
+      (t, i, self) => i === self.findIndex((task) => task.key === t.key)
+    );
+
+    const taskOps = uniqueTasks.map((task) => {
+      const suggestionsForTask = vectorizedSuggestions
+        .filter((sug) => task.productTypes.includes(sug.suggestion))
+        .map(({ vectorizedOn, ...rest }) => rest);
+      return {
+        updateOne: {
+          filter: { key: task.key },
+          update: { $set: { suggestions: suggestionsForTask } },
+        },
+      };
+    });
+
+    if (taskOps.length) await bulkWriteInBatches("Task", taskOps);
 
     await addCronLog({
       functionName: "findProductsForSolutions",
@@ -130,16 +127,13 @@ async function run() {
       message: err.message,
       isError: true,
     });
+  } finally {
+    await client.close();
+    process.exit(0);
   }
 }
 
-run()
-  .then(async () => {
-    await client.close();
-    process.exit(0);
-  })
-  .catch(async (err) => {
-    console.error(err);
-    await client.close();
-    process.exit(1);
-  });
+run().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});

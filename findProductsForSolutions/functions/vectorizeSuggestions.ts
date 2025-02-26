@@ -51,10 +51,9 @@ export default async function vectorizeSuggestions({
       (sug) => !sug.vectorizedOn || new Date(sug.vectorizedOn) < todayMidnight
     );
 
-    const batchSize = 50;
+    const batchSize = 100;
     let insertOps: any[] = [];
-    let updatedSuggestions: any[] = [];
-    const vectorizedSuggestions: any[] = [];
+    const vectorizedSuggestions: SuggestionType[] = [];
 
     for (const suggestion of suggestionsToBeVectorized) {
       const sentences = tokenizer.tokenize(suggestion.description);
@@ -107,7 +106,7 @@ export default async function vectorizeSuggestions({
 
         insertOps.push(newRecord);
 
-        if (insertOps.length > 0 && insertOps.length >= batchSize) {
+        if (insertOps.length >= batchSize) {
           const newVectorizedSuggestions = await processUpdates(
             insertOps,
             suggestions,
@@ -131,14 +130,16 @@ export default async function vectorizeSuggestions({
       vectorizedSuggestions.push(...newVectorizedSuggestions);
     }
 
-    const vectorizedKeys = vectorizedSuggestions.map((s) => s.suggestionName);
+    const updatedSuggestions = suggestions.map((suggestion) => {
+      const matchingVectorizedSuggestion = vectorizedSuggestions.find(
+        (v) => v.suggestion === suggestion.suggestion
+      );
 
-    updatedSuggestions = updatedSuggestions.map((s) => {
-      if (vectorizedKeys.includes(s.suggestion)) {
-        return { ...s, vectorizedOn: todayMidnight };
-      } else {
-        return s;
+      if (matchingVectorizedSuggestion) {
+        return { ...suggestion, ...matchingVectorizedSuggestion };
       }
+
+      return suggestion;
     });
 
     return updatedSuggestions;
