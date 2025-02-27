@@ -19,21 +19,35 @@ async function run() {
         .toArray()
     );
 
+    let reactivatedLength = 0;
+    
     for (const id of idsToReactivate) {
-      await fetch(`${process.env.API_ADMIN_SERVER_URL}/updateAccountAccess`, {
-        method: "POST",
-        headers: { authorization: process.env.ADMIN_API_SECRET_KEY },
-        body: JSON.stringify({
-          userId: id,
-          note: "automatic",
-          moderationStatus: "active",
-        }),
-      });
+      const response = await fetch(
+        `${process.env.API_ADMIN_SERVER_URL}/updateAccountAccess`,
+        {
+          method: "POST",
+          headers: { authorization: process.env.ADMIN_API_SECRET_KEY },
+          body: JSON.stringify({
+            userId: id,
+            note: "automatic",
+            moderationStatus: "active",
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(
+          `Failed to reactivate ${id}. Server response: ${JSON.stringify(data)}`
+        );
+      }
+
+      reactivatedLength++;
     }
 
     await addCronLog({
       functionName: "reactivateBlockedUsers",
-      message: `${idsToReactivate.length} users have been reactivated.`,
+      message: `${reactivatedLength} users have been reactivated.`,
       isError: false,
     });
   } catch (err) {
