@@ -1,2 +1,2 @@
-docker build -t sunchainltd/mux-cron-reactivate-blocked-users --no-cache .
-docker push sunchainltd/mux-cron-reactivate-blocked-users
+docker build -t sunchainltd/mux-cron-update-expired-tasks --no-cache .
+docker push sunchainltd/mux-cron-update-expired-tasks

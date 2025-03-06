@@ -6,7 +6,6 @@ import doWithRetries from "helpers/doWithRetries.js";
 import addCronLog from "helpers/addCronLog.js";
 import updateAnalytics from "./functions/updateAnalytics.js";
 import { db, client } from "init.js";
-import { daysFrom } from "./helpers/utils.js";
 
 async function run() {
   try {
@@ -153,7 +152,12 @@ async function run() {
 
     const { modifiedCount: modfiedRoutines } = await doWithRetries(async () =>
       db.collection("Routine").updateMany(
-        { status: "active", lastDate: { $lte: daysFrom({ days: 1 }) } }, // + 1 day because the lastDate represents starting date not expiry date
+        {
+          status: "active",
+          "allTasks.ids": {
+            $not: { $elemMatch: { status: "active" } },
+          },
+        },
         { $set: { status: "inactive" } }
       )
     );
