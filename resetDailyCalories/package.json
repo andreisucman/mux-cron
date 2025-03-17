@@ -1,5 +1,5 @@
 {
-  "name": "mux-cron-reset-daily-calories",
+  "name": "cron-reset-daily-calories",
   "version": "1.0.0",
   "main": "index.js",
   "private": true,

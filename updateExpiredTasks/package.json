@@ -1,5 +1,5 @@
 {
-  "name": "mux-cron-update-expired-tasks",
+  "name": "cron-update-expired-tasks",
   "version": "1.0.0",
   "main": "index.js",
   "private": true,

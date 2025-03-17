@@ -1,5 +1,5 @@
 {
-  "name": "mux-cron-update-existing-filters",
+  "name": "cron-update-existing-filters",
   "version": "1.0.0",
   "main": "index.js",
   "type": "module",

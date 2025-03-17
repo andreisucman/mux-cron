@@ -1,5 +1,5 @@
 {
-  "name": "mux-cron-increase-coach-energy",
+  "name": "cron-increase-coach-energy",
   "version": "1.0.0",
   "main": "index.js",
   "private": true,
