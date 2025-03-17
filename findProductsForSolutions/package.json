@@ -1,5 +1,5 @@
 {
-  "name": "cron-find-products-for-solutions",
+  "name": "mux-cron-find-products-for-solutions",
   "version": "1.0.0",
   "main": "index.js",
   "private": true,

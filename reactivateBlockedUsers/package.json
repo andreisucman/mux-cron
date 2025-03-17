@@ -1,5 +1,5 @@
 {
-  "name": "cron-reactivate-blocked-users",
+  "name": "mux-cron-reactivate-blocked-users",
   "version": "1.0.0",
   "main": "index.js",
   "private": true,
