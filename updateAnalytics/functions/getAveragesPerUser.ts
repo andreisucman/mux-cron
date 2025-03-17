@@ -16,6 +16,7 @@ export default async function getFinancialCalculations() {
           "overview.user.totalReward": 1,
           "overview.user.totalWithdrawn": 1,
           "overview.user.totalPayable": 1,
+          "overview.user.totalPlatformFee": 1,
         })
         .next()
     );
@@ -26,6 +27,7 @@ export default async function getFinancialCalculations() {
     const { user } = overview;
     const {
       count,
+      totalPlatformFee = 0,
       totalRevenue = 0,
       totalCost = 0,
       totalReward = 0,
@@ -33,13 +35,14 @@ export default async function getFinancialCalculations() {
       totalWithdrawn = 0,
     } = { ...user };
 
-    const { totalUsers } = count;
+    const { totalUsers = 0 } = count;
 
     const netRevenue =
       safeNumber(totalRevenue) -
       safeNumber(totalCost) -
       safeNumber(totalReward) -
-      safeNumber(totalPayable);
+      safeNumber(totalPayable) +
+      safeNumber(totalPlatformFee);
 
     const netCash =
       safeNumber(totalRevenue) -
@@ -47,9 +50,9 @@ export default async function getFinancialCalculations() {
       safeNumber(totalWithdrawn);
 
     return {
-      avgRevenue: totalRevenue / totalUsers,
-      avgCost: totalCost / totalUsers,
-      avgReward: totalReward / totalUsers,
+      avgRevenue: safeNumber(totalRevenue / totalUsers),
+      avgCost: safeNumber(totalCost / totalUsers),
+      avgReward: safeNumber(totalReward / totalUsers),
       netRevenue,
       netCash,
     };

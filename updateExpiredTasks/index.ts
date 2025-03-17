@@ -13,7 +13,12 @@ async function run() {
       db
         .collection("Task")
         .aggregate([
-          { $match: { status: "active", expiresAt: { $lte: new Date() } } },
+          {
+            $match: {
+              status: "active",
+              expiresAt: { $lte: new Date() },
+            },
+          },
           {
             $group: {
               _id: "part",
@@ -48,87 +53,86 @@ async function run() {
       }
     }
 
-    const uniqueUserIds = [
-      ...new Set(expiredTaskPartGroups.map((t) => String(t.userId))),
-    ];
-
-    const usersToReset = [];
-
-    for (const id of uniqueUserIds) {
-      const relatedTasks = expiredTaskPartGroups.filter((t) => t.userId === id);
-
-      const resetRecord: { [key: string]: number } = {};
-
-      for (const task of relatedTasks) {
-        const { _id: part } = task;
-
-        if (part === "face") {
-          resetRecord["streaks.faceStreak"] = 0;
-          resetRecord["streaks.clubFaceStreak"] = 0;
-        }
-        if (part === "mouth") {
-          resetRecord["streaks.mouthStreak"] = 0;
-          resetRecord["streaks.clubMouthStreak"] = 0;
-        }
-        if (part === "scalp") {
-          resetRecord["streaks.scalpStreak"] = 0;
-          resetRecord["streaks.clubScalpStreak"] = 0;
-        }
-        if (part === "body") {
-          resetRecord["streaks.bodyStreak"] = 0;
-          resetRecord["streaks.clubBodyStreak"] = 0;
-        }
-      }
-
-      usersToReset.push({
-        updateOne: {
-          filter: { _id: new ObjectId(id) },
-          update: { $set: resetRecord },
-        },
-      });
-    }
-
-    const bulkOperations: any[] = [];
-    const batchSize = 500;
-
-    for (let i = 0; i < usersToReset.length; i++) {
-      bulkOperations.push(usersToReset[i]);
-
-      if (bulkOperations.length >= batchSize) {
-        await doWithRetries(async () =>
-          db.collection("User").bulkWrite(bulkOperations)
-        );
-        bulkOperations.length = 0;
-      }
-    }
-
-    if (bulkOperations.length > 0) {
-      await doWithRetries(async () =>
-        db.collection("User").bulkWrite(bulkOperations)
-      );
-    }
-
     const expiredTasks = await doWithRetries(async () =>
       db
         .collection("Task")
         .find(
-          { status: "active", expiresAt: { $lte: new Date() } },
+          {
+            status: "active",
+            expiresAt: { $lte: new Date() },
+          },
           {
             projection: {
               _id: 1,
+              userId: 1,
+              part: 1,
             },
           }
         )
         .toArray()
     );
 
+    const uniqueUserIds = [
+      ...new Set(expiredTasks.map((t) => String(t.userId))),
+    ];
+
+    let updateUserOps = [];
+    const batchSize = 500;
+
+    for (const userId of uniqueUserIds) {
+      const relatedTasks = expiredTasks.filter(
+        (t) => String(t.userId) === userId
+      );
+
+      const resetRecord: { [key: string]: number } = {};
+
+      for (const task of relatedTasks) {
+        const { part } = task;
+
+        if (part === "face") {
+          resetRecord["streaks.faceStreak"] = 0;
+        }
+        if (part === "mouth") {
+          resetRecord["streaks.mouthStreak"] = 0;
+        }
+        if (part === "scalp") {
+          resetRecord["streaks.scalpStreak"] = 0;
+        }
+        if (part === "body") {
+          resetRecord["streaks.bodyStreak"] = 0;
+        }
+      }
+
+      updateUserOps.push({
+        updateOne: {
+          filter: { _id: new ObjectId(userId) },
+          update: { $set: resetRecord },
+        },
+      });
+
+      if (updateUserOps.length >= batchSize) {
+        await doWithRetries(async () =>
+          db.collection("User").bulkWrite(updateUserOps)
+        );
+        updateUserOps.length = 0;
+      }
+    }
+
+    if (updateUserOps.length > 0) {
+      await doWithRetries(async () =>
+        db.collection("User").bulkWrite(updateUserOps)
+      );
+      updateUserOps.length = 0;
+    }
+
     const { modifiedCount } = await doWithRetries(async () =>
-      db
-        .collection("Task")
-        .updateMany(
-          { status: "active", expiresAt: { $lte: new Date() } },
-          { $set: { status: "expired" } }
-        )
+      db.collection("Task").updateMany(
+        {
+          status: "active",
+          expiresAt: { $lte: new Date() },
+        },
+        { $set: { status: "expired" } }
+      )
     );
 
     const routineUpdateOps: any[] = expiredTasks.map((obj) => ({

@@ -17,11 +17,6 @@ async function run() {
       filter: { isPublic: true },
     });
 
-    const proofFilters = await extractFilters({
-      collection: "Proof",
-      filter: { isPublic: true },
-    });
-
     const toUpdate = [
       {
         updateOne: {
@@ -34,13 +29,6 @@ async function run() {
         updateOne: {
           filter: { collection: "BeforeAfter" },
           update: { $set: { filters: beforeAfterFilters } },
-          upsert: true,
-        },
-      },
-      {
-        updateOne: {
-          filter: { collection: "Proof" },
-          update: { $set: { filters: proofFilters } },
           upsert: true,
         },
       },

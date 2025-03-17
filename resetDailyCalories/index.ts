@@ -25,7 +25,7 @@ async function run() {
                 $and: [
                   { $eq: [{ $hour: "$$localTime" }, 0] },
                   { $gte: [{ $minute: "$$localTime" }, 0] },
-                  { $lte: [{ $minute: "$$localTime" }, 10] },
+                  { $lte: [{ $minute: "$$localTime" }, 9] },
                   { $gte: [{ $second: "$$localTime" }, 0] },
                   { $lte: [{ $second: "$$localTime" }, 59] },
                 ],
@@ -33,13 +33,11 @@ async function run() {
             },
           },
         },
-        [
-          {
-            $set: {
-              "nutrition.remainingDailyCalories": "$nutrition.dailyCalorieGoal",
-            },
+        {
+          $set: {
+            "nutrition.remainingDailyCalories": "$nutrition.dailyCalorieGoal",
           },
-        ]
+        }
       )
     );
 
