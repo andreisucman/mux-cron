@@ -10,7 +10,7 @@ async function run() {
     const oneHourAgo = new Date(new Date().getTime() - 3600000);
 
     const { deletedCount } = await doWithRetries(async () =>
-      db.collection("User").deleteMany({
+      db.collection("ProcessedEvent").deleteMany({
         createdAt: { $lte: oneHourAgo },
       })
     );
