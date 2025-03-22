@@ -20,23 +20,14 @@ async function run() {
       date: new Date(),
     });
 
-    const {
-      avgCost = 0,
-      avgRevenue = 0,
-      avgReward = 0,
-      netCash = 0,
-      netRevenue = 0,
-    } = await getAveragesPerUser();
+    const { avgCost = 0, avgReward = 0 } = await getAveragesPerUser();
 
     const setPayload = {
       "overview.user.count.blockedUsers": suspendedUsers,
       "overview.user.count.suspendedUsers": blockedUsers,
       "overview.user.count.activeTodayUsers": usersActiveOnThatDate,
-      "overview.user.averageRevenuePerUser": avgRevenue,
       "overview.user.averageCostPerUser": avgCost,
       "overview.user.averageRewardPerUser": avgReward,
-      "overview.accounting.netRevenue": netRevenue,
-      "overview.accounting.netCash": netCash,
     };
 
     await doWithRetries(async () =>

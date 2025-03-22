@@ -27,34 +27,16 @@ export default async function getFinancialCalculations() {
     const { user } = overview;
     const {
       count,
-      totalPlatformFee = 0,
-      totalRevenue = 0,
       totalCost = 0,
       totalReward = 0,
-      totalPayable = 0,
       totalWithdrawn = 0,
     } = { ...user };
 
-    const { totalUsers = 0 } = count;
-
-    const netRevenue =
-      safeNumber(totalRevenue) -
-      safeNumber(totalCost) -
-      safeNumber(totalReward) -
-      safeNumber(totalPayable) +
-      safeNumber(totalPlatformFee);
-
-    const netCash =
-      safeNumber(totalRevenue) -
-      safeNumber(totalCost) -
-      safeNumber(totalWithdrawn);
+    const { totalUsers = 0 } = count || {};
 
     return {
-      avgRevenue: safeNumber(totalRevenue / totalUsers),
       avgCost: safeNumber(totalCost / totalUsers),
       avgReward: safeNumber(totalReward / totalUsers),
-      netRevenue,
-      netCash,
     };
   } catch (err) {
     throw err;

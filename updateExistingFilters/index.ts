@@ -8,23 +8,12 @@ import { db, client } from "./init.js";
 
 async function run() {
   try {
-    const solutionsFilters = await extractFilters({
-      collection: "Solution",
-    });
-
     const beforeAfterFilters = await extractFilters({
       collection: "BeforeAfter",
       filter: { isPublic: true },
     });
 
     const toUpdate = [
-      {
-        updateOne: {
-          filter: { collection: "Solution" },
-          update: { $set: { filters: solutionsFilters } },
-          upsert: true,
-        },
-      },
       {
         updateOne: {
           filter: { collection: "BeforeAfter" },
