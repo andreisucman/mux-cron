@@ -1,0 +1,24 @@
+{
+  "name": "mux-cron-reset-scan-analysis-quota",
+  "version": "1.0.0",
+  "main": "index.js",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc && tsc-alias",
+    "start": "node dist/index.js",
+    "dev": "npx tsx index.js"
+  },
+  "author": "",
+  "license": "UNLICENSED",
+  "description": "",
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "mongodb": "^6.8.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.7.4",
+    "typescript": "^5.6.2",
+    "tsc-alias": "^1.8.10"
+  }
+}
