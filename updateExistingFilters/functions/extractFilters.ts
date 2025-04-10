@@ -14,9 +14,8 @@ export default async function extractFilters({ collection, filter }: Props) {
       {
         $project: {
           part: 1,
-          concern: 1,
           taskName: 1,
-          nearestConcerns: { $ifNull: ["$nearestConcerns", []] },
+          concerns: { $ifNull: ["$concerns", []] },
           sex: "$demographics.sex",
           ageInterval: "$demographics.ageInterval",
           bodyType: "$demographics.bodyType",
@@ -27,7 +26,7 @@ export default async function extractFilters({ collection, filter }: Props) {
       },
       {
         $unwind: {
-          path: "$nearestConcerns",
+          path: "$concerns",
           preserveNullAndEmptyArrays: true,
         },
       },
@@ -37,8 +36,7 @@ export default async function extractFilters({ collection, filter }: Props) {
           taskName: { $addToSet: "$taskName" },
           sex: { $addToSet: "$sex" },
           part: { $addToSet: "$part" },
-          concern: { $addToSet: "$concern" },
-          nearestConcerns: { $addToSet: "$nearestConcerns" },
+          concerns: { $addToSet: "$concerns.name" },
           ageInterval: { $addToSet: "$ageInterval" },
           bodyType: { $addToSet: "$bodyType" },
           skinColor: { $addToSet: "$skinColor" },
@@ -53,10 +51,9 @@ export default async function extractFilters({ collection, filter }: Props) {
           styleName: { $setDifference: ["$styleName", [null]] },
           sex: { $setDifference: ["$sex", [null]] },
           part: { $setDifference: ["$part", [null]] },
-          nearestConcerns: {
-            $setDifference: ["$nearestConcerns", [null]],
+          concerns: {
+            $setDifference: ["$concerns", [null]],
           },
-          concern: { $setDifference: ["$concern", [null]] },
           ageInterval: { $setDifference: ["$ageInterval", [null]] },
           bodyType: { $setDifference: ["$bodyType", [null]] },
           skinColor: { $setDifference: ["$skinColor", [null]] },

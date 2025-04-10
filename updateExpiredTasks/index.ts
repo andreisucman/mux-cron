@@ -15,7 +15,7 @@ async function run() {
         .aggregate([
           {
             $match: {
-              status: "active",
+              status: { $in: ["active", "canceled"] },
               expiresAt: { $lte: new Date() },
             },
           },
@@ -26,7 +26,7 @@ async function run() {
               part: { $first: "$part" },
             },
           },
-          { $project: { _id: 1, userId: 1, part: 1, isCreated: 1 } },
+          { $project: { _id: 1, userId: 1, status: 1, part: 1, isCreated: 1 } },
         ])
         .toArray()
     );
@@ -38,18 +38,20 @@ async function run() {
     };
 
     for (const task of expiredTaskPartGroups) {
-      const taskGeneralKey = `overview.usage.tasks.tasksExpired`;
-      const taskPartKey = `overview.usage.tasks.part.tasksExpired.${task.part}`;
+      if (task.status === "active") {
+        const taskGeneralKey = `overview.usage.tasks.tasksExpired`;
+        const taskPartKey = `overview.usage.tasks.part.tasksExpired.${task.part}`;
 
-      addParamsToAnalytics(taskGeneralKey);
-      addParamsToAnalytics(taskPartKey);
+        addParamsToAnalytics(taskGeneralKey);
+        addParamsToAnalytics(taskPartKey);
 
-      if (task.isCreated) {
-        const manualTaskGeneralKey = `overview.usage.tasks.manualTasksExpired`;
-        const manualTaskPartKey = `overview.usage.tasks.part.manualTasksExpired.${task.part}`;
+        if (task.isCreated) {
+          const manualTaskGeneralKey = `overview.usage.tasks.manualTasksExpired`;
+          const manualTaskPartKey = `overview.usage.tasks.part.manualTasksExpired.${task.part}`;
 
-        addParamsToAnalytics(manualTaskGeneralKey);
-        addParamsToAnalytics(manualTaskPartKey);
+          addParamsToAnalytics(manualTaskGeneralKey);
+          addParamsToAnalytics(manualTaskPartKey);
+        }
       }
     }
 
@@ -58,7 +60,7 @@ async function run() {
         .collection("Task")
         .find(
           {
-            status: "active",
+            status: { $in: ["active", "canceled"] },
             expiresAt: { $lte: new Date() },
           },
           {
@@ -72,17 +74,13 @@ async function run() {
         .toArray()
     );
 
-    const uniqueUserIds = [
-      ...new Set(expiredTasks.map((t) => String(t.userId))),
-    ];
+    const uniqueUserIds = [...new Set(expiredTasks.map((t) => String(t.userId)))];
 
     let updateUserOps = [];
     const batchSize = 500;
 
     for (const userId of uniqueUserIds) {
-      const relatedTasks = expiredTasks.filter(
-        (t) => String(t.userId) === userId
-      );
+      const relatedTasks = expiredTasks.filter((t) => String(t.userId) === userId);
 
       const resetRecord: { [key: string]: number } = {};
 
@@ -92,14 +90,8 @@ async function run() {
         if (part === "face") {
           resetRecord["streaks.faceStreak"] = 0;
         }
-        if (part === "mouth") {
-          resetRecord["streaks.mouthStreak"] = 0;
-        }
         if (part === "scalp") {
-          resetRecord["streaks.scalpStreak"] = 0;
-        }
-        if (part === "body") {
-          resetRecord["streaks.bodyStreak"] = 0;
+          resetRecord["streaks.hairStreak"] = 0;
         }
       }
 
@@ -111,17 +103,13 @@ async function run() {
       });
 
       if (updateUserOps.length >= batchSize) {
-        await doWithRetries(async () =>
-          db.collection("User").bulkWrite(updateUserOps)
-        );
+        await doWithRetries(async () => db.collection("User").bulkWrite(updateUserOps));
         updateUserOps.length = 0;
       }
     }
 
     if (updateUserOps.length > 0) {
-      await doWithRetries(async () =>
-        db.collection("User").bulkWrite(updateUserOps)
-      );
+      await doWithRetries(async () => db.collection("User").bulkWrite(updateUserOps));
       updateUserOps.length = 0;
     }
 
@@ -150,9 +138,7 @@ async function run() {
     }));
 
     if (routineUpdateOps.length > 0)
-      await doWithRetries(async () =>
-        db.collection("Routine").bulkWrite(routineUpdateOps)
-      );
+      await doWithRetries(async () => db.collection("Routine").bulkWrite(routineUpdateOps));
 
     const { modifiedCount: modfiedRoutines } = await doWithRetries(async () =>
       db.collection("Routine").updateMany(
