@@ -25,12 +25,7 @@ export default async function getFinancialCalculations() {
 
     const { overview } = latestTotalAnalyticsDoc;
     const { user } = overview;
-    const {
-      count,
-      totalCost = 0,
-      totalReward = 0,
-      totalWithdrawn = 0,
-    } = { ...user };
+    const { count, totalCost = 0, totalReward = 0 } = { ...user };
 
     const { totalUsers = 0 } = count || {};
 

@@ -15,9 +15,7 @@
   "dependencies": {
     "dotenv": "^16.4.5",
     "luxon": "^3.5.0",
-    "mongodb": "^6.8.1",
-    "p-limit": "^6.1.0",
-    "stripe": "^17.4.0"
+    "mongodb": "^6.8.1"
   },
   "devDependencies": {
     "@types/luxon": "^3.4.2",

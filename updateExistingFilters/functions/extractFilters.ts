@@ -36,7 +36,7 @@ export default async function extractFilters({ collection, filter }: Props) {
           taskName: { $addToSet: "$taskName" },
           sex: { $addToSet: "$sex" },
           part: { $addToSet: "$part" },
-          concerns: { $addToSet: "$concerns.name" },
+          concerns: { $addToSet: "$concerns" },
           ageInterval: { $addToSet: "$ageInterval" },
           bodyType: { $addToSet: "$bodyType" },
           skinColor: { $addToSet: "$skinColor" },
@@ -48,7 +48,6 @@ export default async function extractFilters({ collection, filter }: Props) {
         $project: {
           _id: 0,
           taskName: { $setDifference: ["$taskName", [null]] },
-          styleName: { $setDifference: ["$styleName", [null]] },
           sex: { $setDifference: ["$sex", [null]] },
           part: { $setDifference: ["$part", [null]] },
           concerns: {
@@ -65,9 +64,7 @@ export default async function extractFilters({ collection, filter }: Props) {
 
     if (filter) pipeline.unshift({ $match: filter });
 
-    return await doWithRetries(async () =>
-      db.collection(collection).aggregate(pipeline).next()
-    );
+    return await doWithRetries(async () => db.collection(collection).aggregate(pipeline).next());
   } catch (error) {
     throw error;
   }
