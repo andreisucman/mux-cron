@@ -39,10 +39,7 @@ async function deleteData(userIds: ObjectId[]) {
   );
   await doWithRetries(async () =>
     db.collection("Purchase").deleteMany({
-      $or: [
-        { sellerId: { $in: userIds.map((id) => id) } },
-        { buyerId: { $in: userIds.map((id) => id) } },
-      ],
+      $or: [{ sellerId: { $in: userIds.map((id) => id) } }, { buyerId: { $in: userIds.map((id) => id) } }],
     })
   );
   await doWithRetries(async () =>
@@ -70,11 +67,7 @@ async function run() {
     const batchSize = 500;
 
     for (let i = 0; i < Math.ceil(toBeDeleted.length / batchSize); i++) {
-      toDeleteBatches.push(
-        toBeDeleted
-          .slice(i * batchSize, (i + 1) * batchSize)
-          .map((obj) => obj._id)
-      );
+      toDeleteBatches.push(toBeDeleted.slice(i * batchSize, (i + 1) * batchSize).map((obj) => obj._id));
     }
 
     for (const batch of toDeleteBatches) {
