@@ -14,7 +14,10 @@ async function run() {
         .collection("AnalysisStatus")
         .updateMany(
           { createdAt: { $lte: maxStuckTime } },
-          { $set: { isError: true, isRunning: false, message: "Our servers are overloaded. Please try again." } }
+          {
+            $set: { isError: true, isRunning: false, message: "Our servers are overloaded. Please try again." },
+            $unset: { createdAt: null },
+          }
         )
     );
   } catch (err) {

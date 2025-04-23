@@ -15,19 +15,13 @@ export default async function extractFilters({ collection, filter }: Props) {
         $project: {
           part: 1,
           taskName: 1,
-          concerns: { $ifNull: ["$concerns", []] },
+          concerns: { $ifNull: ["$concern", []] },
           sex: "$demographics.sex",
           ageInterval: "$demographics.ageInterval",
           bodyType: "$demographics.bodyType",
           skinColor: "$demographics.skinColor",
           skinType: "$demographics.skinType",
           ethnicity: "$demographics.ethnicity",
-        },
-      },
-      {
-        $unwind: {
-          path: "$concerns",
-          preserveNullAndEmptyArrays: true,
         },
       },
       {
