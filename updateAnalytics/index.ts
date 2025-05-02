@@ -20,12 +20,12 @@ async function run() {
       date: new Date(),
     });
 
-    const { avgCost, avgReward } = await getAveragesPerUser() || {};
+    const { avgCost, avgReward } = (await getAveragesPerUser()) || {};
 
     const setPayload = {
       "overview.user.count.blockedUsers": suspendedUsers,
       "overview.user.count.suspendedUsers": blockedUsers,
-      "overview.user.count.activeTodayUsers": usersActiveOnThatDate,
+      "overview.user.count.activeUsers": usersActiveOnThatDate,
       "overview.user.averageCostPerUser": avgCost || 0,
       "overview.user.averageRewardPerUser": avgReward || 0,
     };

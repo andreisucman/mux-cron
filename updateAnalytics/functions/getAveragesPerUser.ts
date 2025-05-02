@@ -2,21 +2,18 @@ import doWithRetries from "@/helpers/doWithRetries.js";
 import { adminDb } from "@/init.js";
 import { safeNumber } from "@/helpers/utils.js";
 
-export default async function getFinancialCalculations() {
+export default async function getFinancialCalculations(filter?: { [key: string]: any }) {
   try {
     const latestTotalAnalyticsDoc = await doWithRetries(async () =>
       adminDb
         .collection("TotalAnalytics")
-        .find()
+        .find(filter)
         .sort({ _id: -1 })
         .project({
           "overview.user.count.totalUsers": 1,
           "overview.user.totalRevenue": 1,
-          "overview.user.totalCost": 1,
-          "overview.user.totalReward": 1,
-          "overview.user.totalWithdrawn": 1,
-          "overview.user.totalPayable": 1,
-          "overview.user.totalPlatformFee": 1,
+          "overview.accounting.totalCost": 1,
+          "overview.accounting.totalReward": 1,
         })
         .next()
     );
@@ -24,8 +21,9 @@ export default async function getFinancialCalculations() {
     if (!latestTotalAnalyticsDoc) return;
 
     const { overview } = latestTotalAnalyticsDoc;
-    const { user } = overview;
-    const { count, totalCost = 0, totalReward = 0 } = { ...user };
+    const { user, accounting } = overview;
+    const { count } = { ...user };
+    const { totalCost = 0, totalReward = 0 } = { ...accounting };
 
     const { totalUsers = 0 } = count || {};
 
