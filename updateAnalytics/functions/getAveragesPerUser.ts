@@ -10,10 +10,10 @@ export default async function getFinancialCalculations(filter?: { [key: string]:
         .find(filter)
         .sort({ _id: -1 })
         .project({
-          "overview.user.count.totalUsers": 1,
-          "overview.user.totalRevenue": 1,
-          "overview.accounting.totalCost": 1,
-          "overview.accounting.totalReward": 1,
+          "overview.user.user.count.totalUsers": 1,
+          "overview.user.user.totalRevenue": 1,
+          "overview.user.accounting.totalCost": 1,
+          "overview.user.accounting.totalReward": 1,
         })
         .next()
     );

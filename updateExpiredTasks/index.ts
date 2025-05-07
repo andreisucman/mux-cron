@@ -39,15 +39,15 @@ async function run() {
 
     for (const task of expiredTaskPartGroups) {
       if (task.status === "active") {
-        const taskGeneralKey = `overview.usage.tasks.tasksExpired`;
-        const taskPartKey = `overview.usage.tasks.part.tasksExpired.${task.part}`;
+        const taskGeneralKey = `overview.user.usage.tasks.tasksExpired`;
+        const taskPartKey = `overview.user.usage.tasks.part.tasksExpired.${task.part}`;
 
         addParamsToAnalytics(taskGeneralKey);
         addParamsToAnalytics(taskPartKey);
 
         if (task.isCreated) {
-          const manualTaskGeneralKey = `overview.usage.tasks.manualTasksExpired`;
-          const manualTaskPartKey = `overview.usage.tasks.part.manualTasksExpired.${task.part}`;
+          const manualTaskGeneralKey = `overview.user.usage.tasks.manualTasksExpired`;
+          const manualTaskPartKey = `overview.user.usage.tasks.part.manualTasksExpired.${task.part}`;
 
           addParamsToAnalytics(manualTaskGeneralKey);
           addParamsToAnalytics(manualTaskPartKey);

@@ -23,11 +23,11 @@ async function run() {
     const { avgCost, avgReward } = (await getAveragesPerUser()) || {};
 
     const setPayload = {
-      "overview.user.count.blockedUsers": suspendedUsers,
-      "overview.user.count.suspendedUsers": blockedUsers,
-      "overview.user.count.activeUsers": usersActiveOnThatDate,
-      "overview.user.averageCostPerUser": avgCost || 0,
-      "overview.user.averageRewardPerUser": avgReward || 0,
+      "overview.user.user.count.blockedUsers": suspendedUsers,
+      "overview.user.user.count.suspendedUsers": blockedUsers,
+      "overview.user.user.count.activeUsers": usersActiveOnThatDate,
+      "overview.user.user.averageCostPerUser": avgCost || 0,
+      "overview.user.user.averageRewardPerUser": avgReward || 0,
     };
 
     await doWithRetries(async () =>

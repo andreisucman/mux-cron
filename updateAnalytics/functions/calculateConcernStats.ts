@@ -42,7 +42,7 @@ export default async function getTaskKeysCount() {
 
   const partMap = part.reduce(
     (a: { [key: string]: number }, c: { key: string; count: number }) => {
-      a[`overview.usage.concerns.part.${c.key}`] = c.count;
+      a[`overview.user.usage.concerns.part.${c.key}`] = c.count;
       return a;
     },
     {}
@@ -50,7 +50,7 @@ export default async function getTaskKeysCount() {
 
   const activeMap = active.reduce(
     (a: { [key: string]: number }, c: { key: string; count: number }) => {
-      a[`overview.usage.concerns.status.active.${c.key}`] = c.count;
+      a[`overview.user.usage.concerns.status.active.${c.key}`] = c.count;
       return a;
     },
     {}
@@ -58,7 +58,7 @@ export default async function getTaskKeysCount() {
 
   const disabledMap = disabled.reduce(
     (a: { [key: string]: number }, c: { key: string; count: number }) => {
-      a[`overview.usage.concerns.status.disabled.${c.key}`] = c.count;
+      a[`overview.user.usage.concerns.status.disabled.${c.key}`] = c.count;
       return a;
     },
     {}
