@@ -1,125 +1,128 @@
 import * as dotenv from "dotenv";
 dotenv.config();
-
 import { client, userDb } from "init.js";
 import doWithRetries from "helpers/doWithRetries.js";
 import addCronLog from "helpers/addCronLog.js";
-import { daysFrom } from "./helpers/utils.js";
 
 const createFacet = (interval: "day" | "week" | "month") => {
   let date = new Date();
-  date.setHours(0, 0, 0, 0);
+  date.setUTCHours(0, 0, 0, 0);
 
-  const group: { [key: string]: any } = {
+  const group: Record<string, any> = {
     _id: {
       userId: "$userId",
       part: "$part",
       concern: "$concern",
       page: "$page",
     },
+    views: { $sum: "$views" },
   };
 
-  const projection: { [key: string]: any } = {
+  const projection: Record<string, any> = {
     userId: "$_id.userId",
     part: "$_id.part",
     concern: "$_id.concern",
     page: "$_id.page",
-    userName: 1,
+    views: 1,
+    interval: 1,
     _id: 0,
   };
 
   switch (interval) {
-    case "day":
-      group.viewsDay = { $sum: "$views" };
-      projection.viewsDay = 1;
-      break;
     case "week":
-      group.viewsWeek = { $sum: "$views" };
-      projection.viewsWeek = 1;
-      date = daysFrom({ days: -7, date: date });
+      date.setUTCDate(date.getUTCDate() - 7);
       break;
     case "month":
-      group.viewsMonth = { $sum: "$views" };
-      projection.viewsMonth = 1;
-      date = daysFrom({ days: -30, date: date });
+      date.setUTCMonth(date.getUTCMonth() - 1);
       break;
   }
+
   return [
-    { $match: { updatedAt: { $gte: date } } },
+    { $match: { createdAt: { $gte: date } } },
+    { $group: group },
     {
-      $group: group,
+      $addFields: {
+        interval,
+      },
     },
-    {
-      $project: projection,
-    },
-  ];
+    { $project: projection },
+  ] as const;
 };
 
+async function flushBatch(ops: any[], userDb: typeof import("init.js").userDb) {
+  if (ops.length === 0) return;
+
+  await doWithRetries(() =>
+    userDb.collection("ViewTotal").bulkWrite(ops, { ordered: false })
+  );
+  ops.length = 0;
+}
+
 async function run() {
+  const midnight = new Date();
+  midnight.setUTCHours(0, 0, 0, 0);
+
+  const pipeline = [
+    {
+      $facet: {
+        day: createFacet("day"),
+        week: createFacet("week"),
+        month: createFacet("month"),
+      },
+    },
+    { $project: { merged: { $setUnion: ["$day", "$week", "$month"] } } },
+    { $unwind: "$merged" },
+    {
+      $project: {
+        _id: 0,
+        views: { $ifNull: ["$merged.views", 0] },
+        interval: "$merged.interval",
+        userId: "$merged.userId",
+        part: "$merged.part",
+        concern: "$merged.concern",
+        page: "$merged.page",
+      },
+    },
+  ];
+
+  const cursor = await doWithRetries(async () =>
+    userDb.collection("View").aggregate(pipeline, {
+      allowDiskUse: true,
+      cursor: { batchSize: 2_000 },
+    })
+  );
+
+  const BATCH_SIZE = 1_000;
+  const updateBatch: any[] = [];
+
   try {
-    const calculation = await doWithRetries(async () =>
-      userDb
-        .collection("View")
-        .aggregate([
-          {
-            $facet: {
-              day: createFacet("day"),
-              week: createFacet("week"),
-              month: createFacet("month"),
-            },
-          },
-          { $project: { merged: { $setUnion: ["$day", "$week", "$month"] } } },
-          { $unwind: "$merged" },
-          {
-            $project: {
-              _id: 0,
-              viewsDay: { $ifNull: ["$merged.viewsDay", 0] },
-              viewsWeek: { $ifNull: ["$merged.viewsWeek", 0] },
-              viewsMonth: { $ifNull: ["$merged.viewsMonth", 0] },
-              userName: "$merged.userName",
-              userId: "$merged.userId",
-              part: "$merged.part",
-              concern: "$merged.concern",
-              page: "$merged.page",
-              connectId: "$merged.connectId",
-            },
-          },
-        ])
-        .toArray()
-    );
-
-    if (calculation.length === 0) return;
-
-    const payPerView = +process.env.PAY_PER_MILLE / 1000;
-
-    const midnight = new Date();
-    midnight.setHours(0, 0, 0, 0);
-
-    const updateObjects = calculation.map((obj) => {
-      const { viewsDay, viewsWeek, viewsMonth, ...rest } = obj;
-      return {
+    for await (const doc of cursor) {
+      updateBatch.push({
         updateOne: {
-          filter: { ...rest, updatedAt: midnight },
+          filter: {
+            userId: doc.userId,
+            part: doc.part,
+            concern: doc.concern,
+            page: doc.page,
+            interval: doc.interval,
+          },
           update: {
             $set: {
-              viewsDay,
-              viewsWeek,
-              viewsMonth,
-              earnedDay: payPerView * viewsDay,
-              earnedWeek: payPerView * viewsDay,
-              earnedMonth: payPerView * viewsMonth,
+              views: doc.views,
+              updatedAt: new Date(),
             },
           },
           upsert: true,
         },
-      };
-    });
+      });
 
-    if (updateObjects.length > 0)
-      await doWithRetries(() =>
-        userDb.collection("ViewTotal").bulkWrite(updateObjects)
-      );
-  } catch (err) {
+      if (updateBatch.length >= BATCH_SIZE) {
+        await flushBatch(updateBatch, userDb);
+      }
+    }
+
+    await flushBatch(updateBatch, userDb);
+  } catch (err: any) {
     await addCronLog({
       functionName: "aggregateViewsAndCalculateEarnings",
       isError: true,

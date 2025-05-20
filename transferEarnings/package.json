@@ -1,5 +1,5 @@
 {
-  "name": "mux-cron-transfer-earnings-from-views",
+  "name": "mux-cron-transfer-earnings",
   "version": "1.0.0",
   "main": "index.js",
   "private": true,

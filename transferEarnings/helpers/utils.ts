@@ -58,3 +58,14 @@ export function setToUtcMidnight(date: Date) {
 }
 
 export const safeNumber = (value: any) => (isNaN(value) ? 0 : Number(value));
+
+export function checkIfDeductedThisMonth(
+  previousDate: Date | null,
+  currentDate: Date | null
+) {
+  const prevMonth = new Date(previousDate).getUTCMonth();
+  const prevYear = new Date(previousDate).getUTCFullYear();
+  const currMonth = new Date(currentDate).getUTCMonth();
+  const currYear = new Date(currentDate).getUTCFullYear();
+  return currMonth === prevMonth && currYear === prevYear;
+}
