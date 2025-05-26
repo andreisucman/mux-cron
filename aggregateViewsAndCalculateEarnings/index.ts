@@ -16,6 +16,8 @@ const createFacet = (interval: "day" | "week" | "month") => {
       page: "$page",
     },
     views: { $sum: "$views" },
+    monetization: { $first: "$monetization" },
+    status: { $first: "$status" },
   };
 
   const projection: Record<string, any> = {
@@ -23,6 +25,8 @@ const createFacet = (interval: "day" | "week" | "month") => {
     part: "$_id.part",
     concern: "$_id.concern",
     page: "$_id.page",
+    monetization: 1,
+    status: 1,
     views: 1,
     interval: 1,
     _id: 0,
@@ -36,6 +40,8 @@ const createFacet = (interval: "day" | "week" | "month") => {
       date.setUTCMonth(date.getUTCMonth() - 1);
       break;
   }
+
+  console.log("date", interval, date);
 
   return [
     { $match: { createdAt: { $gte: date } } },
@@ -81,15 +87,20 @@ async function run() {
         part: "$merged.part",
         concern: "$merged.concern",
         page: "$merged.page",
+        monetization: "$merged.monetization",
+        status: "$merged.status",
       },
     },
   ];
 
   const cursor = await doWithRetries(async () =>
-    userDb.collection("View").aggregate(pipeline, {
-      allowDiskUse: true,
-      cursor: { batchSize: 2_000 },
-    })
+    userDb
+      .collection("View")
+      .aggregate(pipeline, {
+        allowDiskUse: true,
+        cursor: { batchSize: 2_000 },
+      })
+      .toArray()
   );
 
   const BATCH_SIZE = 1_000;
@@ -110,6 +121,8 @@ async function run() {
             $set: {
               views: doc.views,
               updatedAt: new Date(),
+              monetization: doc.monetization,
+              status: doc.status,
             },
           },
           upsert: true,
